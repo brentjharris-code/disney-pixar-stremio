@@ -274,7 +274,7 @@ def main():
             # as already-known so aliases do not get auto-added as duplicates.
             known = existing[bucket]
             if key in known or any(
-                len(key) >= 6 and (key in candidate or candidate in key)
+                len(key) >= 5 and (key in candidate or candidate in key)
                 for candidate in known
             ):
                 continue
