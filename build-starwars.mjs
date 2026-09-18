@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { starWarsContent } from "./star-wars-content.mjs";
 
 const autoReleases = JSON.parse(
@@ -389,6 +389,12 @@ document.getElementById('install').href = manifest.replace(/^https?:\\/\\//, 'st
 </html>`;
 
 await writeFile(new URL("./index.html", OUT), html);
+
+// Publish the expanded catalog at a fresh URL so existing Stremio installs
+// cannot reuse the earlier films-only manifest from cache.
+const FRESH = new URL("./dist/star-wars-everything/", import.meta.url);
+await rm(FRESH, { recursive: true, force: true });
+await cp(OUT, FRESH, { recursive: true });
 
 console.log(
   `\nBuilt Star Wars Everything: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`
