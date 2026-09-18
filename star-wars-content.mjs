@@ -56,10 +56,12 @@ export const starWarsContent = [
   { type: "series", title: "Star Wars: Tales of the Empire", year: 2024, aliases: ["Tales of the Empire"] },
   { type: "series", title: "The Acolyte", year: 2024, aliases: ["Star Wars: The Acolyte"] },
   { type: "series", title: "Star Wars: Skeleton Crew", year: 2024, aliases: ["Skeleton Crew"] },
-  { type: "series", id: "tt32306451", title: "LEGO Star Wars: Rebuild the Galaxy", year: 2024, aliases: ["Lego Star Wars: Rebuild the Galaxy", "Rebuild the Galaxy", "LEGO Star Wars: Rebuild the Galaxy - Pieces of the Past", "Lego Star Wars: Rebuild the Galaxy - Pieces of the Past", "Rebuild the Galaxy: Pieces of the Past"] },
+  { type: "series", id: "tt32306451", title: "LEGO Star Wars: Rebuild the Galaxy", year: 2024, aliases: ["Lego Star Wars: Rebuild the Galaxy", "Rebuild the Galaxy"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: Rebuild the Galaxy - Pieces of the Past", year: 2025, aliases: ["Lego Star Wars: Rebuild the Galaxy - Pieces of the Past", "Rebuild the Galaxy: Pieces of the Past"] },
   { type: "series", title: "Star Wars: Tales of the Underworld", year: 2025, aliases: ["Tales of the Underworld"] },
   { type: "series", title: "Star Wars: Maul - Shadow Lord", year: 2026, aliases: ["Star Wars: Maul – Shadow Lord", "Maul - Shadow Lord", "Maul – Shadow Lord"] },
-  { type: "series", title: "Star Wars: Visions Presents - The Ninth Jedi", year: 2026, aliases: ["Star Wars: Visions Presents — The Ninth Jedi", "Visions Presents - The Ninth Jedi", "The Ninth Jedi"] }
+  { type: "series", title: "Star Wars: Visions Presents - The Ninth Jedi", year: 2026, aliases: ["Star Wars: Visions Presents — The Ninth Jedi", "Visions Presents - The Ninth Jedi", "The Ninth Jedi"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: The Mandalorian and Grogu Official Podcast", year: 2026, aliases: ["The Mandalorian and Grogu Official Podcast", "Official Podcast: Star Wars: The Mandalorian and Grogu"] }
 ,
 // Additional official Star Wars screen content audited against StarWars.com's viewing guide
   { type: "movie", id: "tt15311622", title: "The Story of the Faithful Wookiee", year: 1978, aliases: ["The Faithful Wookiee", "Story of the Faithful Wookiee"] },
