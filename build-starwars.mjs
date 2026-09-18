@@ -515,7 +515,7 @@ const manifest = {
       id: CATALOGS.series,
       name: "Star Wars",
       extra: [
-        { name: "genre", isRequired: true, options: SORT_OPTIONS }
+        { name: "genre", isRequired: false, options: SORT_OPTIONS }
       ]
     },
     {
@@ -523,7 +523,7 @@ const manifest = {
       id: CATALOGS.movie,
       name: "Star Wars",
       extra: [
-        { name: "genre", isRequired: true, options: SORT_OPTIONS }
+        { name: "genre", isRequired: false, options: SORT_OPTIONS }
       ]
     }
   ]
@@ -761,6 +761,25 @@ const starWarsV10Manifest = {
 await writeFile(
   new URL("./manifest.json", STAR_WARS_V10),
   JSON.stringify(starWarsV10Manifest, null, 2) + "\n"
+);
+
+const STAR_WARS_V11 = new URL("./dist/star-wars-v11/", import.meta.url);
+await rm(STAR_WARS_V11, { recursive: true, force: true });
+await cp(OUT, STAR_WARS_V11, { recursive: true });
+const starWarsV11Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-v11",
+  version: `11.0.${autoCount}`,
+  name: "Star Wars",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-v11/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Star Wars"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", STAR_WARS_V11),
+  JSON.stringify(starWarsV11Manifest, null, 2) + "\n"
 );
 
 console.log(

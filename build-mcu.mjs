@@ -256,7 +256,7 @@ const manifest = {
       extra: [
         {
           name: "genre",
-          isRequired: true,
+          isRequired: false,
           options: SORT_OPTIONS
         }
       ]
@@ -416,6 +416,29 @@ await writeFile(
   JSON.stringify(marvelV4Manifest, null, 2) + "\n"
 );
 await writeFile(new URL("./index.html", MARVEL_V4), marvelHtml);
+
+const MARVEL_V5 = new URL("./dist/marvel-v5/", import.meta.url);
+await rm(MARVEL_V5, { recursive: true, force: true });
+await mkdir(new URL("./catalog/movie/", MARVEL_V5), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", MARVEL_V5), { recursive: true });
+await writeFile(new URL("./icon.svg", MARVEL_V5), iconSvg);
+
+const marvelV5Manifest = {
+  ...manifest,
+  id: "community.brent.marvel-v5",
+  version: `5.0.${autoCount}`,
+  name: "Marvel",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/marvel-v5/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Marvel"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", MARVEL_V5),
+  JSON.stringify(marvelV5Manifest, null, 2) + "\n"
+);
+await writeFile(new URL("./index.html", MARVEL_V5), marvelHtml);
 
 console.log(
   `\nBuilt ${resolved.length} MCU films into dist/mcu/ with three sort modes.`

@@ -236,7 +236,7 @@ const manifest = {
       extra: [
         {
           name: "genre",
-          isRequired: true,
+          isRequired: false,
           options: SORT_OPTIONS
         }
       ]
@@ -428,6 +428,29 @@ await writeFile(
   JSON.stringify(cleanV5Manifest, null, 2) + "\n"
 );
 await writeFile(new URL("./index.html", CLEAN_V5), cleanHtml);
+
+const CLEAN_V6 = new URL("./disney-pixar-v6/", OUT);
+await rm(CLEAN_V6, { recursive: true, force: true });
+await mkdir(new URL("./catalog/", CLEAN_V6), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", CLEAN_V6), { recursive: true });
+await writeFile(new URL("./icon.svg", CLEAN_V6), iconSvg);
+
+const cleanV6Manifest = {
+  ...manifest,
+  id: "community.brent.disney-pixar-v6",
+  version: `6.0.${autoCount}`,
+  name: "Disney/Pixar",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/disney-pixar-v6/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Disney/Pixar"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", CLEAN_V6),
+  JSON.stringify(cleanV6Manifest, null, 2) + "\n"
+);
+await writeFile(new URL("./index.html", CLEAN_V6), cleanHtml);
 
 console.log(`\nBuilt ${resolved.length} movies with three sort modes.`);
 console.log("Release Date: newest to oldest (default/Home)");
