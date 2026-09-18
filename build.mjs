@@ -2,8 +2,13 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { movies } from "./movies.mjs";
 
 const OUT = new URL("./dist/", import.meta.url);
-const CATALOG_ID = "disney-pixar";
 const CONCURRENCY = 6;
+
+const CATALOGS = {
+  release: "disney-pixar",
+  imdb: "disney-pixar-imdb",
+  alpha: "disney-pixar-alpha"
+};
 
 function normalize(s = "") {
   return s
@@ -41,7 +46,7 @@ async function fetchJson(url, attempts = 4) {
   for (let i = 0; i < attempts; i++) {
     try {
       const res = await fetch(url, {
-        headers: { "user-agent": "DisneyPixarStremioCatalog/1.0" }
+        headers: { "user-agent": "DisneyPixarStremioCatalog/1.1" }
       });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       return await res.json();
@@ -58,6 +63,27 @@ async function searchCinemeta(query) {
   const url = `https://v3-cinemeta.strem.io/catalog/movie/top/search=${encoded}.json`;
   const data = await fetchJson(url);
   return Array.isArray(data.metas) ? data.metas : [];
+}
+
+async function getCinemetaMeta(id) {
+  try {
+    const data = await fetchJson(`https://v3-cinemeta.strem.io/meta/movie/${id}.json`, 3);
+    return data?.meta ?? {};
+  } catch (err) {
+    console.warn(`Could not fetch full metadata for ${id}: ${err.message}`);
+    return {};
+  }
+}
+
+function releaseTimestamp(meta, fallbackYear) {
+  const raw = meta.released ?? meta.releaseDate ?? null;
+  const ts = raw ? Date.parse(raw) : NaN;
+  return Number.isFinite(ts) ? ts : Date.UTC(fallbackYear, 0, 1);
+}
+
+function numericRating(value) {
+  const n = Number.parseFloat(String(value ?? ""));
+  return Number.isFinite(n) ? n : null;
 }
 
 async function resolveMovie(movie) {
@@ -89,12 +115,11 @@ async function resolveMovie(movie) {
     winnerName.includes(wantedName) ||
     wantedName.includes(winnerName);
 
-  // Some older Cinemeta records omit the release year or prefix the canonical
-  // title (for example "Walt Disney's Saludos Amigos"). In those cases the
-  // title match is still strong enough to use safely.
   if (!winner || winner.score < 100) {
     if (!titleCompatible || winner.score < 60) {
-      throw new Error(`Could not confidently resolve ${movie.title} (${movie.year}). Best score: ${winner?.score ?? "none"}`);
+      throw new Error(
+        `Could not confidently resolve ${movie.title} (${movie.year}). Best score: ${winner?.score ?? "none"}`
+      );
     }
     console.warn(
       `Accepted title-only match for ${movie.title} (${movie.year}): "${winner.meta.name}" [${winner.meta.id}], score ${winner.score}`
@@ -102,16 +127,29 @@ async function resolveMovie(movie) {
   }
 
   const id = winner.meta.id;
+  let details = winner.meta;
+
+  if (!winner.meta.imdbRating || !winner.meta.released) {
+    details = { ...winner.meta, ...(await getCinemetaMeta(id)) };
+  }
+
+  const rating = numericRating(details.imdbRating);
+  const released = details.released ?? null;
+
   return {
     id,
     type: "movie",
     name: movie.title,
     releaseInfo: String(movie.year),
-    poster: winner.meta.poster || `https://images.metahub.space/poster/medium/${id}/img`,
+    poster: details.poster || winner.meta.poster || `https://images.metahub.space/poster/medium/${id}/img`,
+    ...(rating !== null ? { imdbRating: rating.toFixed(1) } : {}),
     _studio: movie.studio,
     _resolvedName: winner.meta.name,
     _resolvedYear: getYear(winner.meta),
-    _score: winner.score
+    _score: winner.score,
+    _rating: rating,
+    _released: released,
+    _releaseTs: releaseTimestamp(details, movie.year)
   };
 }
 
@@ -130,6 +168,20 @@ async function mapPool(items, limit, fn) {
   return out;
 }
 
+function publicMeta(item) {
+  const {
+    _studio,
+    _resolvedName,
+    _resolvedYear,
+    _score,
+    _rating,
+    _released,
+    _releaseTs,
+    ...meta
+  } = item;
+  return meta;
+}
+
 await rm(OUT, { recursive: true, force: true });
 await mkdir(new URL("./catalog/movie/", OUT), { recursive: true });
 
@@ -144,30 +196,72 @@ if (duplicateIds.length) {
   throw new Error(`Duplicate IMDb IDs resolved: ${[...new Set(duplicateIds)].join(", ")}`);
 }
 
-// Preserve the curated canon order: Disney in studio release order, then Pixar in studio release order.
-const metas = resolved.map(({ _studio, _resolvedName, _resolvedYear, _score, ...meta }) => meta);
+const byRelease = [...resolved].sort((a, b) =>
+  b._releaseTs - a._releaseTs ||
+  a.name.localeCompare(b.name, "en", { sensitivity: "base" })
+);
+
+const byImdb = [...resolved].sort((a, b) => {
+  const ar = a._rating ?? -1;
+  const br = b._rating ?? -1;
+  return (
+    br - ar ||
+    b._releaseTs - a._releaseTs ||
+    a.name.localeCompare(b.name, "en", { sensitivity: "base" })
+  );
+});
+
+const byAlpha = [...resolved].sort((a, b) =>
+  a.name.localeCompare(b.name, "en", {
+    sensitivity: "base",
+    numeric: true,
+    ignorePunctuation: true
+  })
+);
 
 const manifest = {
   id: "community.brent.disney-pixar-canon",
-  version: "1.0.0",
+  version: "1.1.0",
   name: "Disney + Pixar Canon",
-  description: "All released Walt Disney Animation Studios and Pixar feature films in one curated catalog.",
+  description: "All released Walt Disney Animation Studios and Pixar feature films, sortable by release date, IMDb rating, or title.",
   resources: ["catalog"],
   types: ["movie"],
   catalogs: [
     {
       type: "movie",
-      id: CATALOG_ID,
-      name: "Disney + Pixar Animated Films"
+      id: CATALOGS.release,
+      name: "Disney + Pixar — Release Date"
+    },
+    {
+      type: "movie",
+      id: CATALOGS.imdb,
+      name: "Disney + Pixar — IMDb Rating"
+    },
+    {
+      type: "movie",
+      id: CATALOGS.alpha,
+      name: "Disney + Pixar — A–Z"
     }
   ]
 };
 
 await writeFile(new URL("./manifest.json", OUT), JSON.stringify(manifest, null, 2) + "\n");
+
 await writeFile(
-  new URL(`./catalog/movie/${CATALOG_ID}.json`, OUT),
-  JSON.stringify({ metas }, null, 2) + "\n"
+  new URL(`./catalog/movie/${CATALOGS.release}.json`, OUT),
+  JSON.stringify({ metas: byRelease.map(publicMeta) }, null, 2) + "\n"
 );
+
+await writeFile(
+  new URL(`./catalog/movie/${CATALOGS.imdb}.json`, OUT),
+  JSON.stringify({ metas: byImdb.map(publicMeta) }, null, 2) + "\n"
+);
+
+await writeFile(
+  new URL(`./catalog/movie/${CATALOGS.alpha}.json`, OUT),
+  JSON.stringify({ metas: byAlpha.map(publicMeta) }, null, 2) + "\n"
+);
+
 await writeFile(
   new URL("./resolved-movies.json", OUT),
   JSON.stringify(resolved, null, 2) + "\n"
@@ -189,6 +283,7 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 <body>
 <h1>Disney + Pixar Canon</h1>
 <p>95 released feature films: 64 Walt Disney Animation Studios films and 31 Pixar films.</p>
+<p>Includes three catalog views: Release Date, IMDb Rating, and A–Z.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
 <p class="muted">Manifest: <code id="manifest"></code></p>
 <script>
@@ -200,4 +295,7 @@ document.getElementById('install').href = manifest.replace(/^https?:\\/\\//, 'st
 </html>`;
 await writeFile(new URL("./index.html", OUT), html);
 
-console.log(`\nBuilt ${metas.length} movies into dist/.`);
+console.log(`\nBuilt ${resolved.length} movies into three sorted catalogs.`);
+console.log("Release Date: newest to oldest");
+console.log("IMDb Rating: highest to lowest");
+console.log("Alphabetical: A to Z");
