@@ -466,6 +466,21 @@ await writeFile(
   JSON.stringify(completeManifest, null, 2) + "\n"
 );
 
+const COMPLETE_V4 = new URL("./dist/star-wars-complete-v4/", import.meta.url);
+await rm(COMPLETE_V4, { recursive: true, force: true });
+await cp(OUT, COMPLETE_V4, { recursive: true });
+const completeV4Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-complete-v4",
+  version: `4.0.${autoCount}`,
+  name: "Star Wars — COMPLETE v4",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete-v4/icon.svg"
+};
+await writeFile(
+  new URL("./manifest.json", COMPLETE_V4),
+  JSON.stringify(completeV4Manifest, null, 2) + "\n"
+);
+
 console.log(
   `\nBuilt Star Wars Everything: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`
 );
