@@ -502,7 +502,7 @@ const generatedPosterCount = resolved.filter(x => x._posterFallback).length;
 const manifest = {
   id: "community.brent.star-wars-everything",
   version: `2.2.${autoCount}`,
-  name: "Star Wars — Everything",
+  name: "Star Wars",
   description:
     "Canon Star Wars narrative films and episodic series only.",
   logo:
@@ -692,6 +692,26 @@ const canonV7Manifest = {
 await writeFile(
   new URL("./manifest.json", CANON_V7),
   JSON.stringify(canonV7Manifest, null, 2) + "\n"
+);
+
+const STAR_WARS_V8 = new URL("./dist/star-wars-v8/", import.meta.url);
+await rm(STAR_WARS_V8, { recursive: true, force: true });
+await cp(OUT, STAR_WARS_V8, { recursive: true });
+const starWarsV8Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-v8",
+  version: `8.0.${autoCount}`,
+  name: "Star Wars",
+  description: "Canon Star Wars narrative films and episodic series only.",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-v8/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Star Wars"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", STAR_WARS_V8),
+  JSON.stringify(starWarsV8Manifest, null, 2) + "\n"
 );
 
 console.log(
