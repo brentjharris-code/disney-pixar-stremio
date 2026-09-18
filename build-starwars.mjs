@@ -35,6 +35,11 @@ function normalize(s = "") {
     .toLowerCase();
 }
 
+function customId(item) {
+  const slug = normalize(item.title).replace(/\s+/g, "-");
+  return `sw-${item.type}-${slug}`;
+}
+
 function getYear(meta) {
   const raw = String(meta.releaseInfo ?? meta.year ?? "");
   const match = raw.match(/\b(18|19|20)\d{2}\b/);
@@ -161,6 +166,26 @@ async function resolveItem(item) {
 
   if (!winner || winner.score < 100) {
     if (!titleCompatible || winner.score < 55) {
+      if (item.allowCustom) {
+        const id = customId(item);
+        console.warn(
+          `Using catalog-only Star Wars metadata for ${item.title} (${item.year}); no standalone Cinemeta/IMDb match.`
+        );
+        return {
+          id,
+          type: item.type,
+          name: item.title,
+          releaseInfo: String(item.year),
+          poster: item.poster ||
+            "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg",
+          description: item.description || "Official Star Wars screen content.",
+          _rating: null,
+          _releaseTs: Date.UTC(item.year, 0, 1),
+          _resolvedName: item.title,
+          _score: 0,
+          _custom: true
+        };
+      }
       throw new Error(
         `Could not confidently resolve ${item.type} "${item.title}" (${item.year}). Best score: ${winner?.score ?? "none"}`
       );
@@ -216,7 +241,7 @@ async function mapPool(items, limit, fn) {
 }
 
 function publicMeta(item) {
-  const { _rating, _releaseTs, _resolvedName, _score, ...meta } = item;
+  const { _rating, _releaseTs, _resolvedName, _score, _custom, ...meta } = item;
   return meta;
 }
 
@@ -285,8 +310,11 @@ const manifest = {
     "Official Star Wars screen content: movies, TV movies, specials, live-action and animated series, LEGO, canon and Legends.",
   logo:
     "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/icon.svg",
-  resources: ["catalog"],
-  types: ["movie", "series"],
+  resources: [
+    "catalog",
+    { name: "meta", types: ["movie", "series"], idPrefixes: ["sw-"] }
+  ],
+  types: ["series", "movie"],
   catalogs: [
     {
       type: "series",
@@ -310,6 +338,15 @@ await writeFile(
   new URL("./manifest.json", OUT),
   JSON.stringify(manifest, null, 2) + "\n"
 );
+
+for (const item of resolved.filter(x => x._custom)) {
+  const dir = new URL(`./meta/${item.type}/`, OUT);
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    new URL(`./meta/${item.type}/${item.id}.json`, OUT),
+    JSON.stringify({ meta: publicMeta(item) }, null, 2) + "\n"
+  );
+}
 
 for (const [type, id, items] of [
   ["movie", CATALOGS.movie, resolvedMovies],
@@ -403,7 +440,7 @@ const completeManifest = {
   ...manifest,
   id: "community.brent.star-wars-complete-v3",
   version: `3.0.${autoCount}`,
-  name: "Star Wars — COMPLETE",
+  name: "Star Wars — COMPLETE: Movies + Series",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg"
 };
 await writeFile(
