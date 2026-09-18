@@ -1,0 +1,91 @@
+name: Sync newly released films
+
+on:
+  schedule:
+    - cron: "17 12 * * *"
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "sync-releases.py"
+      - "auto-releases.json"
+      - ".github/workflows/sync-releases.yml"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install parser dependencies
+        run: pip install --disable-pip-version-check pandas lxml
+
+      - name: Check canonical film lists
+        run: python sync-releases.py
+
+      - name: Detect new releases
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet -- auto-releases.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No new released films."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "New released film(s) found."
+            git diff -- auto-releases.json
+          fi
+
+      - name: Set up Node
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate full addon build
+        if: steps.changes.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Commit validated release update
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add auto-releases.json
+          git commit -m "Auto-add newly released Disney Pixar MCU films"
+          git push
+
+      - name: Configure Pages
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy updated addons
+        if: steps.changes.outputs.changed == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4

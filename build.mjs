@@ -1,5 +1,9 @@
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { movies } from "./movies.mjs";
+
+const autoReleases = JSON.parse(await readFile(new URL("./auto-releases.json", import.meta.url), "utf8"));
+const allMovies = [...movies, ...(autoReleases.disneyPixar ?? [])];
+const autoCount = (autoReleases.disneyPixar ?? []).length;
 
 const OUT = new URL("./dist/", import.meta.url);
 const CONCURRENCY = 6;
@@ -182,11 +186,11 @@ function publicMeta(item) {
 await rm(OUT, { recursive: true, force: true });
 await mkdir(new URL("./catalog/movie/", OUT), { recursive: true });
 
-if (movies.length !== 95) {
-  throw new Error(`Expected 95 released Disney/Pixar features, found ${movies.length}.`);
+if (allMovies.length < 95) {
+  throw new Error(`Expected at least 95 released Disney/Pixar features, found ${allMovies.length}.`);
 }
 
-const resolved = await mapPool(movies, CONCURRENCY, resolveMovie);
+const resolved = await mapPool(allMovies, CONCURRENCY, resolveMovie);
 const ids = resolved.map(x => x.id);
 const duplicateIds = ids.filter((id, i) => ids.indexOf(id) !== i);
 if (duplicateIds.length) {
@@ -218,7 +222,7 @@ const byAlpha = [...resolved].sort((a, b) =>
 
 const manifest = {
   id: "community.brent.disney-pixar-canon",
-  version: "1.2.0",
+  version: `1.2.${autoCount}`,
   name: "Disney + Pixar Canon",
   description: "All released Walt Disney Animation Studios and Pixar feature films. Sort by release date, IMDb rating, or title.",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/icon.svg",
@@ -311,7 +315,7 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 </head>
 <body>
 <h1>Disney + Pixar Canon</h1>
-<p>95 released feature films: 64 Walt Disney Animation Studios films and 31 Pixar films.</p>
+<p>${resolved.length} released Walt Disney Animation Studios and Pixar feature films.</p>
 <p>One catalog with sorting for Release Date, IMDb Rating, and Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
 <p class="muted">Manifest: <code id="manifest"></code></p>
@@ -334,7 +338,7 @@ await writeFile(new URL("./icon.svg", V2), iconSvg);
 const v2Manifest = {
   ...manifest,
   id: "community.brent.disney-pixar-canon-v2",
-  version: "2.0.0",
+  version: `2.0.${autoCount}`,
   name: "Disney + Pixar Canon v2",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/v2/icon.svg"
 };

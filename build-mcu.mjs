@@ -1,5 +1,9 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { mcuMovies } from "./mcu-movies.mjs";
+
+const autoReleases = JSON.parse(await readFile(new URL("./auto-releases.json", import.meta.url), "utf8"));
+const allMcuMovies = [...mcuMovies, ...(autoReleases.mcu ?? [])];
+const autoCount = (autoReleases.mcu ?? []).length;
 
 const OUT = new URL("./dist/mcu/", import.meta.url);
 const CATALOG_ID = "mcu-films";
@@ -194,13 +198,13 @@ await mkdir(new URL(`./catalog/movie/${CATALOG_ID}/`, OUT), {
   recursive: true
 });
 
-if (mcuMovies.length !== 38) {
+if (allMcuMovies.length < 38) {
   throw new Error(
-    `Expected 38 released MCU feature films through Spider-Man: Brand New Day, found ${mcuMovies.length}.`
+    `Expected at least 38 released MCU feature films, found ${allMcuMovies.length}.`
   );
 }
 
-const resolved = await mapPool(mcuMovies, CONCURRENCY, resolveMovie);
+const resolved = await mapPool(allMcuMovies, CONCURRENCY, resolveMovie);
 
 const ids = resolved.map(x => x.id);
 const duplicateIds = ids.filter((id, i) => ids.indexOf(id) !== i);
@@ -236,10 +240,10 @@ const byAlpha = [...resolved].sort((a, b) =>
 
 const manifest = {
   id: "community.brent.mcu-films",
-  version: "1.0.0",
+  version: `1.0.${autoCount}`,
   name: "Marvel Cinematic Universe",
   description:
-    "All released Marvel Cinematic Universe feature films through Spider-Man: Brand New Day. Sort by release date, IMDb rating, or title.",
+    "All released Marvel Cinematic Universe feature films. Sort by release date, IMDb rating, or title.",
   logo:
     "https://brentjharris-code.github.io/disney-pixar-stremio/mcu/icon.svg",
   resources: ["catalog"],
@@ -322,7 +326,7 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 </head>
 <body>
 <h1>Marvel Cinematic Universe</h1>
-<p>38 released MCU feature films through <em>Spider-Man: Brand New Day</em>.</p>
+<p>${resolved.length} released MCU feature films.</p>
 <p>Sort by Release Date, IMDb Rating, or Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
 <p class="muted">Manifest: <code id="manifest"></code></p>
