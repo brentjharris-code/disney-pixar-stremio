@@ -1,0 +1,45 @@
+export const mcuMovies = [
+  { title: "Iron Man", year: 2008 },
+  { title: "The Incredible Hulk", year: 2008 },
+  { title: "Iron Man 2", year: 2010 },
+  { title: "Thor", year: 2011 },
+  { title: "Captain America: The First Avenger", year: 2011 },
+  { title: "The Avengers", year: 2012, aliases: ["Marvel's The Avengers"] },
+
+  { title: "Iron Man 3", year: 2013 },
+  { title: "Thor: The Dark World", year: 2013 },
+  { title: "Captain America: The Winter Soldier", year: 2014 },
+  { title: "Guardians of the Galaxy", year: 2014 },
+  { title: "Avengers: Age of Ultron", year: 2015 },
+  { title: "Ant-Man", year: 2015 },
+
+  { title: "Captain America: Civil War", year: 2016 },
+  { title: "Doctor Strange", year: 2016 },
+  { title: "Guardians of the Galaxy Vol. 2", year: 2017, aliases: ["Guardians of the Galaxy Vol. 2"] },
+  { title: "Spider-Man: Homecoming", year: 2017 },
+  { title: "Thor: Ragnarok", year: 2017 },
+  { title: "Black Panther", year: 2018 },
+  { title: "Avengers: Infinity War", year: 2018 },
+  { title: "Ant-Man and the Wasp", year: 2018 },
+  { title: "Captain Marvel", year: 2019 },
+  { title: "Avengers: Endgame", year: 2019 },
+  { title: "Spider-Man: Far From Home", year: 2019 },
+
+  { title: "Black Widow", year: 2021 },
+  { title: "Shang-Chi and the Legend of the Ten Rings", year: 2021 },
+  { title: "Eternals", year: 2021 },
+  { title: "Spider-Man: No Way Home", year: 2021 },
+  { title: "Doctor Strange in the Multiverse of Madness", year: 2022 },
+  { title: "Thor: Love and Thunder", year: 2022 },
+  { title: "Black Panther: Wakanda Forever", year: 2022 },
+
+  { title: "Ant-Man and the Wasp: Quantumania", year: 2023 },
+  { title: "Guardians of the Galaxy Vol. 3", year: 2023, aliases: ["Guardians of the Galaxy Volume 3"] },
+  { title: "The Marvels", year: 2023 },
+  { title: "Deadpool & Wolverine", year: 2024, aliases: ["Deadpool and Wolverine"] },
+
+  { title: "Captain America: Brave New World", year: 2025 },
+  { title: "Thunderbolts*", year: 2025, aliases: ["Thunderbolts", "The New Avengers"] },
+  { title: "The Fantastic Four: First Steps", year: 2025, aliases: ["Fantastic Four: First Steps"] },
+  { title: "Spider-Man: Brand New Day", year: 2026 }
+];
