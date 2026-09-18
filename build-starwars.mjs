@@ -82,7 +82,7 @@ function wrapPosterTitle(title, maxChars = 22) {
   return lines.slice(0, 5);
 }
 
-async function await generateFallbackPosterPng(item) {
+async function generateFallbackPosterPng(item) {
   const width = 600;
   const height = 900;
   const lines = wrapPosterTitle(item.title);
