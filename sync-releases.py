@@ -48,7 +48,24 @@ def normalize_title(value):
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
     value = value.replace("&", " and ")
     value = re.sub(r"[^a-zA-Z0-9]+", " ", value)
-    return re.sub(r"\s+", " ", value).strip().lower()
+    value = re.sub(r"\s+", " ", value).strip().lower()
+
+    # Treat sequel numbers written as Roman numerals and Arabic numerals as
+    # equivalent (e.g. "Frozen II" vs "Frozen 2").
+    roman = {
+        "i": "1",
+        "ii": "2",
+        "iii": "3",
+        "iv": "4",
+        "v": "5",
+        "vi": "6",
+        "vii": "7",
+        "viii": "8",
+        "ix": "9",
+        "x": "10",
+    }
+    tokens = [roman.get(token, token) for token in value.split()]
+    return " ".join(tokens)
 
 
 def clean_title(value):
