@@ -63,6 +63,10 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Node dependencies
+        if: steps.changes.outputs.changed == 'true'
+        run: npm install --no-audit --no-fund
+
       - name: Validate full addon build
         if: steps.changes.outputs.changed == 'true'
         run: npm run build

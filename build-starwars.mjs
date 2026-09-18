@@ -1,5 +1,5 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { deflateSync } from "node:zlib";
+import sharp from "sharp";
 import { starWarsContent } from "./star-wars-content.mjs";
 
 const autoReleases = JSON.parse(
@@ -17,7 +17,7 @@ const autoCount =
   (autoReleases.starWarsSeries ?? []).length;
 
 const OUT = new URL("./dist/star-wars/", import.meta.url);
-const POSTER_BASE = "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/posters";
+const POSTER_BASE = "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/posters-v3";
 const CONCURRENCY = 6;
 const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
 
@@ -51,88 +51,82 @@ function posterStem(item) {
   return `${item.type}-${item.year}-${slug || "untitled"}`;
 }
 
-function crc32(buffer) {
-  let crc = 0xffffffff;
-  for (const byte of buffer) {
-    crc ^= byte;
-    for (let i = 0; i < 8; i++) {
-      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+function xmlEscape(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function wrapPosterTitle(title, maxChars = 22) {
+  const clean = String(title)
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+  const words = clean.split(" ");
+  const lines = [];
+  let line = "";
+
+  for (const word of words) {
+    const proposed = line ? line + " " + word : word;
+    if (proposed.length <= maxChars) {
+      line = proposed;
+    } else {
+      if (line) lines.push(line);
+      line = word;
     }
   }
-  return (crc ^ 0xffffffff) >>> 0;
+  if (line) lines.push(line);
+  return lines.slice(0, 5);
 }
 
-function pngChunk(type, data) {
-  const typeBuf = Buffer.from(type);
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
-  return Buffer.concat([len, typeBuf, data, crc]);
-}
+async function await generateFallbackPosterPng(item) {
+  const width = 600;
+  const height = 900;
+  const lines = wrapPosterTitle(item.title);
+  const titleSize = lines.length >= 5 ? 42 : lines.length >= 4 ? 48 : 54;
+  const lineHeight = Math.round(titleSize * 1.18);
+  const titleBlockHeight = lines.length * lineHeight;
+  const titleStart = Math.round(470 - titleBlockHeight / 2);
 
-function titleSeed(text) {
-  let h = 2166136261;
-  for (const ch of text) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+  const titleSvg = lines.map((line, i) =>
+    '<text x="300" y="' + (titleStart + i * lineHeight) +
+    '" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="' +
+    titleSize + '" font-weight="700" fill="#f5f5f2">' +
+    xmlEscape(line) + '</text>'
+  ).join("");
 
-function generateFallbackPosterPng(item) {
-  const width = 420;
-  const height = 630;
-  const rowBytes = 1 + width * 3;
-  const raw = Buffer.alloc(rowBytes * height);
-  const seed = titleSeed(`${item.type}:${item.year}:${item.title}`);
+  const typeLabel = item.type === "series" ? "SERIES" : "MOVIE / SPECIAL";
 
-  for (let y = 0; y < height; y++) {
-    const row = y * rowBytes;
-    raw[row] = 0;
-    for (let x = 0; x < width; x++) {
-      const i = row + 1 + x * 3;
-      const edge = x < 7 || x >= width - 7 || y < 7 || y >= height - 7;
-      const glow = Math.max(0, 1 - Math.abs(y - height * 0.52) / (height * 0.52));
-      let r = Math.round(3 + glow * 8);
-      let g = Math.round(5 + glow * 7);
-      let b = Math.round(12 + glow * 18);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">' +
+    '<defs>' +
+      '<radialGradient id="bg" cx="50%" cy="42%" r="75%">' +
+        '<stop offset="0%" stop-color="#17213c"/>' +
+        '<stop offset="58%" stop-color="#080b15"/>' +
+        '<stop offset="100%" stop-color="#020307"/>' +
+      '</radialGradient>' +
+      '<filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '</defs>' +
+    '<rect width="600" height="900" fill="url(#bg)"/>' +
+    '<g fill="#f6d32d" opacity="0.9">' +
+      '<circle cx="78" cy="155" r="2"/><circle cx="510" cy="118" r="2"/><circle cx="135" cy="705" r="2"/>' +
+      '<circle cx="468" cy="654" r="1.8"/><circle cx="350" cy="210" r="1.5"/><circle cx="236" cy="760" r="1.5"/>' +
+    '</g>' +
+    '<rect x="14" y="14" width="572" height="872" rx="18" fill="none" stroke="#f0ca25" stroke-width="7"/>' +
+    '<text x="300" y="130" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-size="72" font-weight="900" fill="#f3cf27" filter="url(#glow)">STAR</text>' +
+    '<text x="300" y="202" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-size="72" font-weight="900" fill="#f3cf27" filter="url(#glow)">WARS</text>' +
+    '<line x1="70" x2="530" y1="245" y2="245" stroke="#f0ca25" stroke-width="3" opacity="0.8"/>' +
+    titleSvg +
+    '<line x1="110" x2="490" y1="690" y2="690" stroke="#73798a" stroke-width="2"/>' +
+    '<text x="300" y="752" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="700" letter-spacing="4" fill="#aeb4c2">' +
+      xmlEscape(typeLabel) + '</text>' +
+    '<text x="300" y="820" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-size="46" font-weight="900" fill="#f3cf27">' +
+      xmlEscape(item.year) + '</text>' +
+    '</svg>';
 
-      const n = (Math.imul(x + 1, 1103515245) ^ Math.imul(y + 1, 12345) ^ seed) >>> 0;
-      if (!edge && n % 997 < 2) {
-        r = 235;
-        g = 235;
-        b = 220;
-      }
-
-      if (edge) {
-        r = 232;
-        g = 190;
-        b = 28;
-      }
-
-      raw[i] = r;
-      raw[i + 1] = g;
-      raw[i + 2] = b;
-    }
-  }
-
-  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-
-  return Buffer.concat([
-    signature,
-    pngChunk("IHDR", ihdr),
-    pngChunk("IDAT", deflateSync(raw, { level: 9 })),
-    pngChunk("IEND", Buffer.alloc(0))
-  ]);
+  return await sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 function sniffImageExtension(buffer, contentType = "") {
@@ -173,7 +167,7 @@ async function materializePoster(item, candidates = []) {
     const image = await fetchPosterBinary(candidate);
     if (!image) continue;
     const filename = `${stem}.${image.ext}`;
-    await writeFile(new URL(`./posters/${filename}`, OUT), image.buffer);
+    await writeFile(new URL(`./posters-v3/${filename}`, OUT), image.buffer);
     return {
       url: `${POSTER_BASE}/${filename}`,
       fallback: false
@@ -463,7 +457,7 @@ function sortAlpha(items) {
 }
 
 await rm(OUT, { recursive: true, force: true });
-await mkdir(new URL("./posters/", OUT), { recursive: true });
+await mkdir(new URL("./posters-v3/", OUT), { recursive: true });
 
 const movieItems = allContent.filter(x => x.type === "movie");
 const seriesItems = allContent.filter(x => x.type === "series");
@@ -499,7 +493,7 @@ const generatedPosterCount = resolved.filter(x => x._posterFallback).length;
 
 const manifest = {
   id: "community.brent.star-wars-everything",
-  version: `2.1.${autoCount}`,
+  version: `2.2.${autoCount}`,
   name: "Star Wars — Everything",
   description:
     "Official Star Wars screen content: movies, TV movies, specials, live-action and animated series, LEGO, canon and Legends.",
@@ -507,7 +501,8 @@ const manifest = {
     "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/icon.svg",
   resources: [
     "catalog",
-    { name: "meta", types: ["movie", "series"], idPrefixes: ["sw-"] }
+    { name: "meta", types: ["movie", "series"], idPrefixes: ["sw-"] },
+    { name: "stream", types: ["movie", "series"], idPrefixes: ["sw-"] }
   ],
   types: ["series", "movie"],
   catalogs: [
@@ -540,6 +535,33 @@ for (const item of resolved.filter(x => x._custom)) {
   await writeFile(
     new URL(`./meta/${item.type}/${item.id}.json`, OUT),
     JSON.stringify({ meta: publicMeta(item) }, null, 2) + "\n"
+  );
+
+  const streamDir = new URL(`./stream/${item.type}/`, OUT);
+  await mkdir(streamDir, { recursive: true });
+  const query = encodeURIComponent(item.name + " Star Wars official");
+  const starWarsQuery = encodeURIComponent("site:starwars.com " + item.name);
+
+  await writeFile(
+    new URL(`./stream/${item.type}/${item.id}.json`, OUT),
+    JSON.stringify(
+      {
+        streams: [
+          {
+            name: "Official / Web",
+            title: "Find official Star Wars source",
+            externalUrl: `https://www.google.com/search?q=${starWarsQuery}`
+          },
+          {
+            name: "YouTube",
+            title: "Find this Star Wars title on YouTube",
+            externalUrl: `https://www.youtube.com/results?search_query=${query}`
+          }
+        ]
+      },
+      null,
+      2
+    ) + "\n"
   );
 }
 
@@ -634,7 +656,7 @@ await cp(OUT, COMPLETE, { recursive: true });
 const completeManifest = {
   ...manifest,
   id: "community.brent.star-wars-complete-v3",
-  version: `3.1.${autoCount}`,
+  version: `3.2.${autoCount}`,
   name: "Star Wars — COMPLETE: Movies + Series",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg"
 };
@@ -649,7 +671,7 @@ await cp(OUT, COMPLETE_V4, { recursive: true });
 const completeV4Manifest = {
   ...manifest,
   id: "community.brent.star-wars-complete-v4",
-  version: `4.1.${autoCount}`,
+  version: `4.2.${autoCount}`,
   name: "Star Wars — COMPLETE v4",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete-v4/icon.svg"
 };
@@ -671,6 +693,21 @@ const completeV5Manifest = {
 await writeFile(
   new URL("./manifest.json", COMPLETE_V5),
   JSON.stringify(completeV5Manifest, null, 2) + "\n"
+);
+
+const COMPLETE_V6 = new URL("./dist/star-wars-complete-v6/", import.meta.url);
+await rm(COMPLETE_V6, { recursive: true, force: true });
+await cp(OUT, COMPLETE_V6, { recursive: true });
+const completeV6Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-complete-v6",
+  version: `6.0.${autoCount}`,
+  name: "Star Wars — COMPLETE v6",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete-v6/icon.svg"
+};
+await writeFile(
+  new URL("./manifest.json", COMPLETE_V6),
+  JSON.stringify(completeV6Manifest, null, 2) + "\n"
 );
 
 console.log(

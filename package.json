@@ -8,5 +8,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "sharp": "^0.34.3"
   }
 }
