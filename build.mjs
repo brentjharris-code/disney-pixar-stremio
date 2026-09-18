@@ -10,6 +10,7 @@ const CONCURRENCY = 6;
 
 const CATALOG_ID = "disney-pixar";
 const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
+const ORDER_OPTIONS = ["Descending", "Ascending"];
 
 function normalize(s = "") {
   return s
@@ -236,7 +237,13 @@ const manifest = {
       extra: [
         {
           name: "genre",
+          isRequired: true,
           options: SORT_OPTIONS
+        },
+        {
+          name: "order",
+          isRequired: true,
+          options: ORDER_OPTIONS
         }
       ]
     }
@@ -256,15 +263,48 @@ await writeFile(
 await mkdir(new URL(`./catalog/movie/${CATALOG_ID}/`, OUT), { recursive: true });
 
 const sortedCatalogs = new Map([
-  ["Release Date", byRelease],
-  ["IMDb Rating", byImdb],
-  ["Alphabetical", byAlpha]
+  ["Release Date", {
+    Descending: byRelease,
+    Ascending: [...byRelease].reverse()
+  }],
+  ["IMDb Rating", {
+    Descending: byImdb,
+    Ascending: [...byImdb].reverse()
+  }],
+  ["Alphabetical", {
+    Descending: [...byAlpha].reverse(),
+    Ascending: byAlpha
+  }]
 ]);
 
-for (const [label, items] of sortedCatalogs) {
+for (const [label, orders] of sortedCatalogs) {
+  const legacyDefault =
+    label === "Alphabetical" ? orders.Ascending : orders.Descending;
+
   await writeFile(
     new URL(`./catalog/movie/${CATALOG_ID}/genre=${label}.json`, OUT),
-    JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
+    JSON.stringify({ metas: legacyDefault.map(publicMeta) }, null, 2) + "\n"
+  );
+
+  for (const order of ORDER_OPTIONS) {
+    const items = orders[order];
+
+    await writeFile(
+      new URL(`./catalog/movie/${CATALOG_ID}/genre=${label}&order=${order}.json`, OUT),
+      JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
+    );
+
+    await writeFile(
+      new URL(`./catalog/movie/${CATALOG_ID}/order=${order}&genre=${label}.json`, OUT),
+      JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
+    );
+  }
+}
+
+for (const order of ORDER_OPTIONS) {
+  await writeFile(
+    new URL(`./catalog/movie/${CATALOG_ID}/order=${order}.json`, OUT),
+    JSON.stringify({ metas: sortedCatalogs.get("Release Date")[order].map(publicMeta) }, null, 2) + "\n"
   );
 }
 
@@ -378,6 +418,29 @@ const cleanHtml = html
   .replace("<title>Disney/Pixar — Stremio Addon</title>", "<title>Disney/Pixar — Stremio Addon</title>")
   .replace("<h1>Disney/Pixar</h1>", "<h1>Disney/Pixar</h1>");
 await writeFile(new URL("./index.html", CLEAN), cleanHtml);
+
+const CLEAN_V4 = new URL("./disney-pixar-v4/", OUT);
+await rm(CLEAN_V4, { recursive: true, force: true });
+await mkdir(new URL("./catalog/", CLEAN_V4), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", CLEAN_V4), { recursive: true });
+await writeFile(new URL("./icon.svg", CLEAN_V4), iconSvg);
+
+const cleanV4Manifest = {
+  ...manifest,
+  id: "community.brent.disney-pixar-v4",
+  version: `4.0.${autoCount}`,
+  name: "Disney/Pixar",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/disney-pixar-v4/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Disney/Pixar"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", CLEAN_V4),
+  JSON.stringify(cleanV4Manifest, null, 2) + "\n"
+);
+await writeFile(new URL("./index.html", CLEAN_V4), cleanHtml);
 
 console.log(`\nBuilt ${resolved.length} movies with three sort modes.`);
 console.log("Release Date: newest to oldest (default/Home)");

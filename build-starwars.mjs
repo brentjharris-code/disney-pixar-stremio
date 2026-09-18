@@ -20,6 +20,7 @@ const OUT = new URL("./dist/star-wars/", import.meta.url);
 const POSTER_BASE = "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/posters-v3";
 const CONCURRENCY = 6;
 const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
+const ORDER_OPTIONS = ["Descending", "Ascending"];
 
 const CATALOGS = {
   movie: "star-wars-complete-movies-specials",
@@ -514,13 +515,19 @@ const manifest = {
       type: "series",
       id: CATALOGS.series,
       name: "Star Wars",
-      extra: [{ name: "genre", options: SORT_OPTIONS }]
+      extra: [
+        { name: "genre", isRequired: true, options: SORT_OPTIONS },
+        { name: "order", isRequired: true, options: ORDER_OPTIONS }
+      ]
     },
     {
       type: "movie",
       id: CATALOGS.movie,
       name: "Star Wars",
-      extra: [{ name: "genre", options: SORT_OPTIONS }]
+      extra: [
+        { name: "genre", isRequired: true, options: SORT_OPTIONS },
+        { name: "order", isRequired: true, options: ORDER_OPTIONS }
+      ]
     }
   ]
 };
@@ -537,21 +544,60 @@ for (const [type, id, items] of [
   ["movie", CATALOGS.movie, resolvedMovies],
   ["series", CATALOGS.series, resolvedSeries]
 ]) {
-  const sorted = new Map([
-    ["Release Date", sortRelease(items)],
-    ["IMDb Rating", sortImdb(items)],
-    ["Alphabetical", sortAlpha(items)]
+  const releaseDesc = sortRelease(items);
+  const imdbDesc = sortImdb(items);
+  const alphaAsc = sortAlpha(items);
+
+  const variants = new Map([
+    ["Release Date", {
+      Descending: releaseDesc,
+      Ascending: [...releaseDesc].reverse()
+    }],
+    ["IMDb Rating", {
+      Descending: imdbDesc,
+      Ascending: [...imdbDesc].reverse()
+    }],
+    ["Alphabetical", {
+      Descending: [...alphaAsc].reverse(),
+      Ascending: alphaAsc
+    }]
   ]);
 
   await writeFile(
     new URL(`./catalog/${type}/${id}.json`, OUT),
-    JSON.stringify({ metas: sorted.get("Release Date").map(publicMeta) }, null, 2) + "\n"
+    JSON.stringify({ metas: releaseDesc.map(publicMeta) }, null, 2) + "\n"
   );
 
-  for (const [label, list] of sorted) {
+  // Preserve the old single-filter endpoints for compatibility.
+  for (const [label, orders] of variants) {
+    const legacyDefault =
+      label === "Alphabetical" ? orders.Ascending : orders.Descending;
     await writeFile(
       new URL(`./catalog/${type}/${id}/genre=${label}.json`, OUT),
-      JSON.stringify({ metas: list.map(publicMeta) }, null, 2) + "\n"
+      JSON.stringify({ metas: legacyDefault.map(publicMeta) }, null, 2) + "\n"
+    );
+
+    for (const order of ORDER_OPTIONS) {
+      const list = orders[order];
+
+      // Current Stremio emits extras in manifest order.
+      await writeFile(
+        new URL(`./catalog/${type}/${id}/genre=${label}&order=${order}.json`, OUT),
+        JSON.stringify({ metas: list.map(publicMeta) }, null, 2) + "\n"
+      );
+
+      // Also serve the reversed parameter order for client compatibility.
+      await writeFile(
+        new URL(`./catalog/${type}/${id}/order=${order}&genre=${label}.json`, OUT),
+        JSON.stringify({ metas: list.map(publicMeta) }, null, 2) + "\n"
+      );
+    }
+  }
+
+  for (const order of ORDER_OPTIONS) {
+    await writeFile(
+      new URL(`./catalog/${type}/${id}/order=${order}.json`, OUT),
+      JSON.stringify({ metas: variants.get("Release Date")[order].map(publicMeta) }, null, 2) + "\n"
     );
   }
 }
@@ -712,6 +758,25 @@ const starWarsV8Manifest = {
 await writeFile(
   new URL("./manifest.json", STAR_WARS_V8),
   JSON.stringify(starWarsV8Manifest, null, 2) + "\n"
+);
+
+const STAR_WARS_V9 = new URL("./dist/star-wars-v9/", import.meta.url);
+await rm(STAR_WARS_V9, { recursive: true, force: true });
+await cp(OUT, STAR_WARS_V9, { recursive: true });
+const starWarsV9Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-v9",
+  version: `9.0.${autoCount}`,
+  name: "Star Wars",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-v9/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Star Wars"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", STAR_WARS_V9),
+  JSON.stringify(starWarsV9Manifest, null, 2) + "\n"
 );
 
 console.log(
