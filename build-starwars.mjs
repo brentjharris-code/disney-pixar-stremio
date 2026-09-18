@@ -513,13 +513,13 @@ const manifest = {
     {
       type: "series",
       id: CATALOGS.series,
-      name: "STAR WARS — CANON SERIES",
+      name: "Star Wars",
       extra: [{ name: "genre", options: SORT_OPTIONS }]
     },
     {
       type: "movie",
       id: CATALOGS.movie,
-      name: "STAR WARS — CANON FILMS",
+      name: "Star Wars",
       extra: [{ name: "genre", options: SORT_OPTIONS }]
     }
   ]
