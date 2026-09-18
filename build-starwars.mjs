@@ -108,6 +108,25 @@ function releaseTimestamp(meta, fallbackYear) {
 }
 
 async function resolveItem(item) {
+  if (item.id && String(item.id).startsWith("tt")) {
+    const details = await getCinemetaMeta(item.id, item.type);
+    const rating = numericRating(details.imdbRating);
+    return {
+      id: item.id,
+      type: item.type,
+      name: item.title,
+      releaseInfo: String(item.year),
+      poster:
+        details.poster ||
+        `https://images.metahub.space/poster/medium/${item.id}/img`,
+      ...(rating !== null ? { imdbRating: rating.toFixed(1) } : {}),
+      _rating: rating,
+      _releaseTs: releaseTimestamp(details, item.year),
+      _resolvedName: details.name ?? item.title,
+      _score: 999
+    };
+  }
+
   const queries = [item.title, ...(item.aliases ?? [])];
   let candidates = [];
 

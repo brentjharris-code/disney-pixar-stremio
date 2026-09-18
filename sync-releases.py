@@ -269,7 +269,14 @@ def main():
                 continue
 
             key = normalize_title(item["title"])
-            if key in existing[bucket]:
+            # Source tables often shorten titles ("Rebels", "Episode IV – A
+            # New Hope", "Visions Presents"). Treat a clear containment match
+            # as already-known so aliases do not get auto-added as duplicates.
+            known = existing[bucket]
+            if key in known or any(
+                len(key) >= 6 and (key in candidate or candidate in key)
+                for candidate in known
+            ):
                 continue
 
             additions[bucket].append(item)
