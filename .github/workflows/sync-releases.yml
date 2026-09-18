@@ -9,6 +9,8 @@ on:
     paths:
       - "sync-releases.py"
       - "auto-releases.json"
+      - "star-wars-movies.mjs"
+      - "build-starwars.mjs"
       - ".github/workflows/sync-releases.yml"
 
 permissions:
