@@ -462,13 +462,21 @@ await mkdir(new URL("./posters-v3/", OUT), { recursive: true });
 const movieItems = allContent.filter(x => x.type === "movie");
 const seriesItems = allContent.filter(x => x.type === "series");
 
-if (movieItems.length < 20 || seriesItems.length < 25) {
+if (movieItems.length !== 13 || seriesItems.length !== 17) {
   throw new Error(
-    `Star Wars catalog unexpectedly small: ${movieItems.length} movies/specials, ${seriesItems.length} series.`
+    `Expected 13 canon films and 17 canon series, found ${movieItems.length} films and ${seriesItems.length} series.`
   );
 }
 
 const resolved = await mapPool(allContent, CONCURRENCY, resolveItem);
+
+for (const item of resolved) {
+  if (!String(item.id ?? "").startsWith("tt")) {
+    throw new Error(
+      `Canon Star Wars item resolved without IMDb ID: ${item.type} "${item.name}" -> ${item.id}`
+    );
+  }
+}
 
 const idsByType = new Map();
 for (const item of resolved) {
@@ -496,26 +504,22 @@ const manifest = {
   version: `2.2.${autoCount}`,
   name: "Star Wars — Everything",
   description:
-    "Official Star Wars screen content: movies, TV movies, specials, live-action and animated series, LEGO, canon and Legends.",
+    "Canon Star Wars narrative films and episodic series only.",
   logo:
     "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/icon.svg",
-  resources: [
-    "catalog",
-    { name: "meta", types: ["movie", "series"], idPrefixes: ["sw-"] },
-    { name: "stream", types: ["movie", "series"], idPrefixes: ["sw-"] }
-  ],
+  resources: ["catalog"],
   types: ["series", "movie"],
   catalogs: [
     {
       type: "series",
       id: CATALOGS.series,
-      name: "STAR WARS — EVERYTHING: SERIES",
+      name: "STAR WARS — CANON SERIES",
       extra: [{ name: "genre", options: SORT_OPTIONS }]
     },
     {
       type: "movie",
       id: CATALOGS.movie,
-      name: "STAR WARS — EVERYTHING: MOVIES, SPECIALS & DOCS",
+      name: "STAR WARS — CANON FILMS",
       extra: [{ name: "genre", options: SORT_OPTIONS }]
     }
   ]
@@ -528,42 +532,6 @@ await writeFile(
   new URL("./manifest.json", OUT),
   JSON.stringify(manifest, null, 2) + "\n"
 );
-
-for (const item of resolved.filter(x => x._custom)) {
-  const dir = new URL(`./meta/${item.type}/`, OUT);
-  await mkdir(dir, { recursive: true });
-  await writeFile(
-    new URL(`./meta/${item.type}/${item.id}.json`, OUT),
-    JSON.stringify({ meta: publicMeta(item) }, null, 2) + "\n"
-  );
-
-  const streamDir = new URL(`./stream/${item.type}/`, OUT);
-  await mkdir(streamDir, { recursive: true });
-  const query = encodeURIComponent(item.name + " Star Wars official");
-  const starWarsQuery = encodeURIComponent("site:starwars.com " + item.name);
-
-  await writeFile(
-    new URL(`./stream/${item.type}/${item.id}.json`, OUT),
-    JSON.stringify(
-      {
-        streams: [
-          {
-            name: "Official / Web",
-            title: "Find official Star Wars source",
-            externalUrl: `https://www.google.com/search?q=${starWarsQuery}`
-          },
-          {
-            name: "YouTube",
-            title: "Find this Star Wars title on YouTube",
-            externalUrl: `https://www.youtube.com/results?search_query=${query}`
-          }
-        ]
-      },
-      null,
-      2
-    ) + "\n"
-  );
-}
 
 for (const [type, id, items] of [
   ["movie", CATALOGS.movie, resolvedMovies],
@@ -629,8 +597,8 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 </head>
 <body>
 <h1>Star Wars — Everything</h1>
-<p>${resolvedMovies.length} movies/specials and ${resolvedSeries.length} series.</p>
-<p>Includes theatrical films, TV movies, specials, live-action and animation, LEGO, canon and Legends.</p>
+<p>${resolvedMovies.length} canon films and ${resolvedSeries.length} canon series.</p>
+<p>No LEGO, documentaries, podcasts, promotional shorts, Legends, or alternate-continuity material.</p>
 <p>Each catalog can be sorted by Release Date, IMDb Rating, or Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
 <p class="muted">Manifest: <code id="manifest"></code></p>
@@ -710,8 +678,24 @@ await writeFile(
   JSON.stringify(completeV6Manifest, null, 2) + "\n"
 );
 
+const CANON_V7 = new URL("./dist/star-wars-canon-v7/", import.meta.url);
+await rm(CANON_V7, { recursive: true, force: true });
+await cp(OUT, CANON_V7, { recursive: true });
+const canonV7Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-canon-v7",
+  version: `7.0.${autoCount}`,
+  name: "Star Wars — Canon",
+  description: "Canon Star Wars narrative films and episodic series only.",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-canon-v7/icon.svg"
+};
+await writeFile(
+  new URL("./manifest.json", CANON_V7),
+  JSON.stringify(canonV7Manifest, null, 2) + "\n"
+);
+
 console.log(
-  `\nBuilt Star Wars Everything: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`
+  `\nBuilt Star Wars Canon: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`
 );
 console.log(
   `Poster cache: ${resolved.length - generatedPosterCount} downloaded + ${generatedPosterCount} generated fallbacks; every catalog item now points to a local GitHub Pages poster.`

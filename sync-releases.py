@@ -31,18 +31,6 @@ SOURCES = [
         "bucket": "mcu",
         "studio": None,
     },
-    {
-        "url": "https://en.wikipedia.org/wiki/List_of_Star_Wars_films",
-        "bucket": "starWarsMovies",
-        "studio": None,
-        "type": "movie",
-    },
-    {
-        "url": "https://en.wikipedia.org/wiki/List_of_Star_Wars_television_series",
-        "bucket": "starWarsSeries",
-        "studio": None,
-        "type": "series",
-    },
 ]
 
 MONTHS = (
@@ -245,7 +233,7 @@ def main():
             for t in names_from_js(STAR_WARS_SOURCE)
         },
     }
-    for bucket in ("disneyPixar", "mcu", "starWarsMovies", "starWarsSeries"):
+    for bucket in ("disneyPixar", "mcu"):
         existing[bucket].update(
             normalize_title(item["title"]) for item in auto[bucket]
         )
@@ -253,8 +241,6 @@ def main():
     additions = {
         "disneyPixar": [],
         "mcu": [],
-        "starWarsMovies": [],
-        "starWarsSeries": [],
     }
 
     for source in SOURCES:
@@ -283,7 +269,7 @@ def main():
             existing[bucket].add(key)
 
     changed = False
-    for bucket in ("disneyPixar", "mcu", "starWarsMovies", "starWarsSeries"):
+    for bucket in ("disneyPixar", "mcu"):
         if additions[bucket]:
             additions[bucket].sort(
                 key=lambda x: (x["releaseDate"], x["title"])
@@ -305,7 +291,7 @@ def main():
             encoding="utf-8",
         )
     else:
-        print("No newly released Disney/Pixar/MCU/Star Wars screen titles found.")
+        print("No newly released Disney/Pixar/MCU films found. Star Wars canon list is curated separately.")
 
 
 if __name__ == "__main__":
