@@ -176,8 +176,8 @@ async function materializePoster(item, candidates = []) {
 
   const filename = `${stem}.png`;
   await writeFile(
-    new URL(`./posters/${filename}`, OUT),
-    generateFallbackPosterPng(item)
+    new URL(`./posters-v3/${filename}`, OUT),
+    await generateFallbackPosterPng(item)
   );
   return {
     url: `${POSTER_BASE}/${filename}`,
