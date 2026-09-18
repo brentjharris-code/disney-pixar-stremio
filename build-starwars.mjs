@@ -48,7 +48,7 @@ function posterStem(item) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 90);
-  return \`\${item.type}-\${item.year}-\${slug || "untitled"}\`;
+  return `${item.type}-${item.year}-${slug || "untitled"}`;
 }
 
 function crc32(buffer) {
@@ -85,7 +85,7 @@ function generateFallbackPosterPng(item) {
   const height = 630;
   const rowBytes = 1 + width * 3;
   const raw = Buffer.alloc(rowBytes * height);
-  const seed = titleSeed(\`\${item.type}:\${item.year}:\${item.title}\`);
+  const seed = titleSeed(`${item.type}:${item.year}:${item.title}`);
 
   for (let y = 0; y < height; y++) {
     const row = y * rowBytes;
@@ -172,21 +172,21 @@ async function materializePoster(item, candidates = []) {
   for (const candidate of unique) {
     const image = await fetchPosterBinary(candidate);
     if (!image) continue;
-    const filename = \`\${stem}.\${image.ext}\`;
-    await writeFile(new URL(\`./posters/\${filename}\`, OUT), image.buffer);
+    const filename = `${stem}.${image.ext}`;
+    await writeFile(new URL(`./posters/${filename}`, OUT), image.buffer);
     return {
-      url: \`\${POSTER_BASE}/\${filename}\`,
+      url: `${POSTER_BASE}/${filename}`,
       fallback: false
     };
   }
 
-  const filename = \`\${stem}.png\`;
+  const filename = `${stem}.png`;
   await writeFile(
-    new URL(\`./posters/\${filename}\`, OUT),
+    new URL(`./posters/${filename}`, OUT),
     generateFallbackPosterPng(item)
   );
   return {
-    url: \`\${POSTER_BASE}/\${filename}\`,
+    url: `${POSTER_BASE}/${filename}`,
     fallback: true
   };
 }
