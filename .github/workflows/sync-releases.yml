@@ -9,7 +9,7 @@ on:
     paths:
       - "sync-releases.py"
       - "auto-releases.json"
-      - "star-wars-movies.mjs"
+      - "star-wars-content.mjs"
       - "build-starwars.mjs"
       - ".github/workflows/sync-releases.yml"
 
