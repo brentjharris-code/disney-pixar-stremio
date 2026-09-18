@@ -223,7 +223,7 @@ const byAlpha = [...resolved].sort((a, b) =>
 const manifest = {
   id: "community.brent.disney-pixar-canon",
   version: `1.2.${autoCount}`,
-  name: "Disney + Pixar Canon",
+  name: "Disney/Pixar",
   description: "All released Walt Disney Animation Studios and Pixar feature films. Sort by release date, IMDb rating, or title.",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/icon.svg",
   resources: ["catalog"],
@@ -232,7 +232,7 @@ const manifest = {
     {
       type: "movie",
       id: CATALOG_ID,
-      name: "Disney + Pixar Animated Films",
+      name: "Disney/Pixar",
       extra: [
         {
           name: "genre",
@@ -306,7 +306,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Disney + Pixar Canon — Stremio Addon</title>
+<title>Disney/Pixar — Stremio Addon</title>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;background:#111;color:#eee;max-width:760px;margin:60px auto;padding:0 24px;line-height:1.5}
 a.button{display:inline-block;background:#7b5cff;color:#fff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700;margin-right:10px}
@@ -314,7 +314,7 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 </style>
 </head>
 <body>
-<h1>Disney + Pixar Canon</h1>
+<h1>Disney/Pixar</h1>
 <p>${resolved.length} released Walt Disney Animation Studios and Pixar feature films.</p>
 <p>One catalog with sorting for Release Date, IMDb Rating, and Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
@@ -351,6 +351,33 @@ const v2Html = html
   .replace("<title>Disney + Pixar Canon — Stremio Addon</title>", "<title>Disney + Pixar Canon v2 — Stremio Addon</title>")
   .replace("<h1>Disney + Pixar Canon</h1>", "<h1>Disney + Pixar Canon v2</h1>");
 await writeFile(new URL("./index.html", V2), v2Html);
+
+const CLEAN = new URL("./disney-pixar-v3/", OUT);
+await rm(CLEAN, { recursive: true, force: true });
+await mkdir(new URL("./catalog/", CLEAN), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", CLEAN), { recursive: true });
+await writeFile(new URL("./icon.svg", CLEAN), iconSvg);
+
+const cleanManifest = {
+  ...manifest,
+  id: "community.brent.disney-pixar-v3",
+  version: `3.0.${autoCount}`,
+  name: "Disney/Pixar",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/disney-pixar-v3/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Disney/Pixar"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", CLEAN),
+  JSON.stringify(cleanManifest, null, 2) + "\n"
+);
+
+const cleanHtml = html
+  .replace("<title>Disney/Pixar — Stremio Addon</title>", "<title>Disney/Pixar — Stremio Addon</title>")
+  .replace("<h1>Disney/Pixar</h1>", "<h1>Disney/Pixar</h1>");
+await writeFile(new URL("./index.html", CLEAN), cleanHtml);
 
 console.log(`\nBuilt ${resolved.length} movies with three sort modes.`);
 console.log("Release Date: newest to oldest (default/Home)");

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { mcuMovies } from "./mcu-movies.mjs";
 
 const autoReleases = JSON.parse(await readFile(new URL("./auto-releases.json", import.meta.url), "utf8"));
@@ -241,7 +241,7 @@ const byAlpha = [...resolved].sort((a, b) =>
 const manifest = {
   id: "community.brent.mcu-films",
   version: `1.0.${autoCount}`,
-  name: "Marvel Cinematic Universe",
+  name: "Marvel",
   description:
     "All released Marvel Cinematic Universe feature films. Sort by release date, IMDb rating, or title.",
   logo:
@@ -252,7 +252,7 @@ const manifest = {
     {
       type: "movie",
       id: CATALOG_ID,
-      name: "Marvel Cinematic Universe Films",
+      name: "Marvel",
       extra: [
         {
           name: "genre",
@@ -317,7 +317,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Marvel Cinematic Universe — Stremio Addon</title>
+<title>Marvel — Stremio Addon</title>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;background:#090909;color:#eee;max-width:760px;margin:60px auto;padding:0 24px;line-height:1.5}
 a.button{display:inline-block;background:#c6172d;color:#fff;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:700}
@@ -325,7 +325,7 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 </style>
 </head>
 <body>
-<h1>Marvel Cinematic Universe</h1>
+<h1>Marvel</h1>
 <p>${resolved.length} released MCU feature films.</p>
 <p>Sort by Release Date, IMDb Rating, or Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
@@ -339,6 +339,33 @@ document.getElementById('install').href = manifest.replace(/^https?:\\/\\//, 'st
 </html>`;
 
 await writeFile(new URL("./index.html", OUT), html);
+
+const MARVEL = new URL("./dist/marvel-v2/", import.meta.url);
+await rm(MARVEL, { recursive: true, force: true });
+await mkdir(new URL("./catalog/movie/", MARVEL), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", MARVEL), { recursive: true });
+await writeFile(new URL("./icon.svg", MARVEL), iconSvg);
+
+const marvelManifest = {
+  ...manifest,
+  id: "community.brent.marvel-v2",
+  version: `2.0.${autoCount}`,
+  name: "Marvel",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/marvel-v2/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Marvel"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", MARVEL),
+  JSON.stringify(marvelManifest, null, 2) + "\n"
+);
+
+const marvelHtml = html
+  .replace("<title>Marvel — Stremio Addon</title>", "<title>Marvel — Stremio Addon</title>")
+  .replace("<h1>Marvel</h1>", "<h1>Marvel</h1>");
+await writeFile(new URL("./index.html", MARVEL), marvelHtml);
 
 console.log(
   `\nBuilt ${resolved.length} MCU films into dist/mcu/ with three sort modes.`
