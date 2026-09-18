@@ -82,8 +82,23 @@ async function resolveMovie(movie) {
     .sort((a, b) => b.score - a.score);
 
   const winner = ranked[0];
+  const winnerName = normalize(winner?.meta?.name ?? "");
+  const wantedName = normalize(movie.title);
+  const titleCompatible =
+    winnerName === wantedName ||
+    winnerName.includes(wantedName) ||
+    wantedName.includes(winnerName);
+
+  // Some older Cinemeta records omit the release year or prefix the canonical
+  // title (for example "Walt Disney's Saludos Amigos"). In those cases the
+  // title match is still strong enough to use safely.
   if (!winner || winner.score < 100) {
-    throw new Error(`Could not confidently resolve ${movie.title} (${movie.year}). Best score: ${winner?.score ?? "none"}`);
+    if (!titleCompatible || winner.score < 60) {
+      throw new Error(`Could not confidently resolve ${movie.title} (${movie.year}). Best score: ${winner?.score ?? "none"}`);
+    }
+    console.warn(
+      `Accepted title-only match for ${movie.title} (${movie.year}): "${winner.meta.name}" [${winner.meta.id}], score ${winner.score}`
+    );
   }
 
   const id = winner.meta.id;
