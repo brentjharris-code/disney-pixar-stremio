@@ -565,7 +565,7 @@ for (const [type, id, items] of [
       JSON.stringify({ metas: list.map(publicMeta) }, null, 2) + "\n"
     );
   }
-
+}
 
 await writeFile(
   new URL("./resolved-content.json", OUT),
