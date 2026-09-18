@@ -1,4 +1,5 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { deflateSync } from "node:zlib";
 import { starWarsContent } from "./star-wars-content.mjs";
 
 const autoReleases = JSON.parse(
@@ -16,6 +17,7 @@ const autoCount =
   (autoReleases.starWarsSeries ?? []).length;
 
 const OUT = new URL("./dist/star-wars/", import.meta.url);
+const POSTER_BASE = "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/posters";
 const CONCURRENCY = 6;
 const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
 
@@ -38,6 +40,155 @@ function normalize(s = "") {
 function customId(item) {
   const slug = normalize(item.title).replace(/\s+/g, "-");
   return `sw-${item.type}-${slug}`;
+}
+
+
+function posterStem(item) {
+  const slug = normalize(item.title)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90);
+  return \`\${item.type}-\${item.year}-\${slug || "untitled"}\`;
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const typeBuf = Buffer.from(type);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
+  return Buffer.concat([len, typeBuf, data, crc]);
+}
+
+function titleSeed(text) {
+  let h = 2166136261;
+  for (const ch of text) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function generateFallbackPosterPng(item) {
+  const width = 420;
+  const height = 630;
+  const rowBytes = 1 + width * 3;
+  const raw = Buffer.alloc(rowBytes * height);
+  const seed = titleSeed(\`\${item.type}:\${item.year}:\${item.title}\`);
+
+  for (let y = 0; y < height; y++) {
+    const row = y * rowBytes;
+    raw[row] = 0;
+    for (let x = 0; x < width; x++) {
+      const i = row + 1 + x * 3;
+      const edge = x < 7 || x >= width - 7 || y < 7 || y >= height - 7;
+      const glow = Math.max(0, 1 - Math.abs(y - height * 0.52) / (height * 0.52));
+      let r = Math.round(3 + glow * 8);
+      let g = Math.round(5 + glow * 7);
+      let b = Math.round(12 + glow * 18);
+
+      const n = (Math.imul(x + 1, 1103515245) ^ Math.imul(y + 1, 12345) ^ seed) >>> 0;
+      if (!edge && n % 997 < 2) {
+        r = 235;
+        g = 235;
+        b = 220;
+      }
+
+      if (edge) {
+        r = 232;
+        g = 190;
+        b = 28;
+      }
+
+      raw[i] = r;
+      raw[i + 1] = g;
+      raw[i + 2] = b;
+    }
+  }
+
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  return Buffer.concat([
+    signature,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", deflateSync(raw, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0))
+  ]);
+}
+
+function sniffImageExtension(buffer, contentType = "") {
+  const ct = String(contentType).toLowerCase();
+  if (ct.includes("jpeg") || ct.includes("jpg")) return "jpg";
+  if (ct.includes("png")) return "png";
+  if (ct.includes("webp")) return "webp";
+
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "jpg";
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return "png";
+  if (buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") return "webp";
+  return null;
+}
+
+async function fetchPosterBinary(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const res = await fetch(url, {
+      headers: { "user-agent": "StarWarsEverythingStremioCatalog/PosterCache" },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length < 1000) return null;
+    const ext = sniffImageExtension(buffer, res.headers.get("content-type"));
+    if (!ext) return null;
+    return { buffer, ext };
+  } catch {
+    return null;
+  }
+}
+
+async function materializePoster(item, candidates = []) {
+  const stem = posterStem(item);
+  const unique = [...new Set(candidates.filter(Boolean))];
+
+  for (const candidate of unique) {
+    const image = await fetchPosterBinary(candidate);
+    if (!image) continue;
+    const filename = \`\${stem}.\${image.ext}\`;
+    await writeFile(new URL(\`./posters/\${filename}\`, OUT), image.buffer);
+    return {
+      url: \`\${POSTER_BASE}/\${filename}\`,
+      fallback: false
+    };
+  }
+
+  const filename = \`\${stem}.png\`;
+  await writeFile(
+    new URL(\`./posters/\${filename}\`, OUT),
+    generateFallbackPosterPng(item)
+  );
+  return {
+    url: \`\${POSTER_BASE}/\${filename}\`,
+    fallback: true
+  };
 }
 
 function getYear(meta) {
@@ -115,38 +266,43 @@ function releaseTimestamp(meta, fallbackYear) {
 async function resolveItem(item) {
   if (item.forceCustom) {
     const id = customId(item);
+    const poster = await materializePoster(item, [item.poster]);
     return {
       id,
       type: item.type,
       name: item.title,
       releaseInfo: String(item.year),
-      poster: item.poster ||
-        "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg",
+      poster: poster.url,
       description: item.description || "Official Star Wars screen content.",
       _rating: null,
       _releaseTs: Date.UTC(item.year, 0, 1),
       _resolvedName: item.title,
       _score: 0,
-      _custom: true
+      _custom: true,
+      _posterFallback: poster.fallback
     };
   }
 
   if (item.id && String(item.id).startsWith("tt")) {
     const details = await getCinemetaMeta(item.id, item.type);
     const rating = numericRating(details.imdbRating);
+    const poster = await materializePoster(item, [
+      item.poster,
+      details.poster,
+      `https://images.metahub.space/poster/medium/${item.id}/img`
+    ]);
     return {
       id: item.id,
       type: item.type,
       name: item.title,
       releaseInfo: String(item.year),
-      poster:
-        details.poster ||
-        `https://images.metahub.space/poster/medium/${item.id}/img`,
+      poster: poster.url,
       ...(rating !== null ? { imdbRating: rating.toFixed(1) } : {}),
       _rating: rating,
       _releaseTs: releaseTimestamp(details, item.year),
       _resolvedName: details.name ?? item.title,
-      _score: 999
+      _score: 999,
+      _posterFallback: poster.fallback
     };
   }
 
@@ -189,19 +345,20 @@ async function resolveItem(item) {
         console.warn(
           `Using catalog-only Star Wars metadata for ${item.title} (${item.year}); no standalone Cinemeta/IMDb match.`
         );
+        const poster = await materializePoster(item, [item.poster]);
         return {
           id,
           type: item.type,
           name: item.title,
           releaseInfo: String(item.year),
-          poster: item.poster ||
-            "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg",
+          poster: poster.url,
           description: item.description || "Official Star Wars screen content.",
           _rating: null,
           _releaseTs: Date.UTC(item.year, 0, 1),
           _resolvedName: item.title,
           _score: 0,
-          _custom: true
+          _custom: true,
+          _posterFallback: poster.fallback
         };
       }
       throw new Error(
@@ -221,21 +378,25 @@ async function resolveItem(item) {
   }
 
   const rating = numericRating(details.imdbRating);
+  const poster = await materializePoster(item, [
+    item.poster,
+    details.poster,
+    winner.meta.poster,
+    `https://images.metahub.space/poster/medium/${id}/img`
+  ]);
 
   return {
     id,
     type: item.type,
     name: item.title,
     releaseInfo: String(item.year),
-    poster:
-      details.poster ||
-      winner.meta.poster ||
-      `https://images.metahub.space/poster/medium/${id}/img`,
+    poster: poster.url,
     ...(rating !== null ? { imdbRating: rating.toFixed(1) } : {}),
     _rating: rating,
     _releaseTs: releaseTimestamp(details, item.year),
     _resolvedName: winner.meta.name,
-    _score: winner.score
+    _score: winner.score,
+    _posterFallback: poster.fallback
   };
 }
 
@@ -259,7 +420,15 @@ async function mapPool(items, limit, fn) {
 }
 
 function publicMeta(item) {
-  const { _rating, _releaseTs, _resolvedName, _score, _custom, ...meta } = item;
+  const {
+    _rating,
+    _releaseTs,
+    _resolvedName,
+    _score,
+    _custom,
+    _posterFallback,
+    ...meta
+  } = item;
   return meta;
 }
 
@@ -294,6 +463,7 @@ function sortAlpha(items) {
 }
 
 await rm(OUT, { recursive: true, force: true });
+await mkdir(new URL("./posters/", OUT), { recursive: true });
 
 const movieItems = allContent.filter(x => x.type === "movie");
 const seriesItems = allContent.filter(x => x.type === "series");
@@ -320,9 +490,16 @@ for (const item of resolved) {
 const resolvedMovies = resolved.filter(x => x.type === "movie");
 const resolvedSeries = resolved.filter(x => x.type === "series");
 
+for (const item of resolved) {
+  if (!item.poster || !item.poster.startsWith(`${POSTER_BASE}/`)) {
+    throw new Error(`Poster invariant failed for ${item.type} "${item.name}".`);
+  }
+}
+const generatedPosterCount = resolved.filter(x => x._posterFallback).length;
+
 const manifest = {
   id: "community.brent.star-wars-everything",
-  version: `2.0.${autoCount}`,
+  version: `2.1.${autoCount}`,
   name: "Star Wars — Everything",
   description:
     "Official Star Wars screen content: movies, TV movies, specials, live-action and animated series, LEGO, canon and Legends.",
@@ -457,7 +634,7 @@ await cp(OUT, COMPLETE, { recursive: true });
 const completeManifest = {
   ...manifest,
   id: "community.brent.star-wars-complete-v3",
-  version: `3.0.${autoCount}`,
+  version: `3.1.${autoCount}`,
   name: "Star Wars — COMPLETE: Movies + Series",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg"
 };
@@ -472,7 +649,7 @@ await cp(OUT, COMPLETE_V4, { recursive: true });
 const completeV4Manifest = {
   ...manifest,
   id: "community.brent.star-wars-complete-v4",
-  version: `4.0.${autoCount}`,
+  version: `4.1.${autoCount}`,
   name: "Star Wars — COMPLETE v4",
   logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete-v4/icon.svg"
 };
@@ -481,6 +658,24 @@ await writeFile(
   JSON.stringify(completeV4Manifest, null, 2) + "\n"
 );
 
+const COMPLETE_V5 = new URL("./dist/star-wars-complete-v5/", import.meta.url);
+await rm(COMPLETE_V5, { recursive: true, force: true });
+await cp(OUT, COMPLETE_V5, { recursive: true });
+const completeV5Manifest = {
+  ...manifest,
+  id: "community.brent.star-wars-complete-v5",
+  version: `5.0.${autoCount}`,
+  name: "Star Wars — COMPLETE v5",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete-v5/icon.svg"
+};
+await writeFile(
+  new URL("./manifest.json", COMPLETE_V5),
+  JSON.stringify(completeV5Manifest, null, 2) + "\n"
+);
+
 console.log(
   `\nBuilt Star Wars Everything: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`
+);
+console.log(
+  `Poster cache: ${resolved.length - generatedPosterCount} downloaded + ${generatedPosterCount} generated fallbacks; every catalog item now points to a local GitHub Pages poster.`
 );
