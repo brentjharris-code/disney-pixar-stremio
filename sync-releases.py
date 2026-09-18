@@ -12,7 +12,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 AUTO_PATH = ROOT / "auto-releases.json"
 DISNEY_SOURCE = ROOT / "movies.mjs"
-MCU_SOURCE = ROOT / "mcu-movies.mjs"\nSTAR_WARS_SOURCE = ROOT / "star-wars-movies.mjs"
+MCU_SOURCE = ROOT / "mcu-movies.mjs"
+STAR_WARS_SOURCE = ROOT / "star-wars-movies.mjs"
 
 SOURCES = [
     {
