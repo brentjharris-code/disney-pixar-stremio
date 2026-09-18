@@ -4,11 +4,8 @@ import { movies } from "./movies.mjs";
 const OUT = new URL("./dist/", import.meta.url);
 const CONCURRENCY = 6;
 
-const CATALOGS = {
-  release: "disney-pixar",
-  imdb: "disney-pixar-imdb",
-  alpha: "disney-pixar-alpha"
-};
+const CATALOG_ID = "disney-pixar";
+const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
 
 function normalize(s = "") {
   return s
@@ -221,52 +218,84 @@ const byAlpha = [...resolved].sort((a, b) =>
 
 const manifest = {
   id: "community.brent.disney-pixar-canon",
-  version: "1.1.0",
+  version: "1.2.0",
   name: "Disney + Pixar Canon",
-  description: "All released Walt Disney Animation Studios and Pixar feature films, sortable by release date, IMDb rating, or title.",
+  description: "All released Walt Disney Animation Studios and Pixar feature films. Sort by release date, IMDb rating, or title.",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/icon.svg",
   resources: ["catalog"],
   types: ["movie"],
   catalogs: [
     {
       type: "movie",
-      id: CATALOGS.release,
-      name: "Disney + Pixar — Release Date"
-    },
-    {
-      type: "movie",
-      id: CATALOGS.imdb,
-      name: "Disney + Pixar — IMDb Rating"
-    },
-    {
-      type: "movie",
-      id: CATALOGS.alpha,
-      name: "Disney + Pixar — A–Z"
+      id: CATALOG_ID,
+      name: "Disney + Pixar Animated Films",
+      extra: [
+        {
+          name: "genre",
+          options: SORT_OPTIONS
+        }
+      ]
     }
   ]
 };
 
 await writeFile(new URL("./manifest.json", OUT), JSON.stringify(manifest, null, 2) + "\n");
 
+// Default Home catalog: release date, newest first.
 await writeFile(
-  new URL(`./catalog/movie/${CATALOGS.release}.json`, OUT),
+  new URL(`./catalog/movie/${CATALOG_ID}.json`, OUT),
   JSON.stringify({ metas: byRelease.map(publicMeta) }, null, 2) + "\n"
 );
 
-await writeFile(
-  new URL(`./catalog/movie/${CATALOGS.imdb}.json`, OUT),
-  JSON.stringify({ metas: byImdb.map(publicMeta) }, null, 2) + "\n"
-);
+// Stremio exposes catalog "extra" options through its Discover dropdown.
+// Static GitHub Pages can serve these because each option is pre-generated.
+await mkdir(new URL(`./catalog/movie/${CATALOG_ID}/`, OUT), { recursive: true });
 
-await writeFile(
-  new URL(`./catalog/movie/${CATALOGS.alpha}.json`, OUT),
-  JSON.stringify({ metas: byAlpha.map(publicMeta) }, null, 2) + "\n"
-);
+const sortedCatalogs = new Map([
+  ["Release Date", byRelease],
+  ["IMDb Rating", byImdb],
+  ["Alphabetical", byAlpha]
+]);
+
+for (const [label, items] of sortedCatalogs) {
+  await writeFile(
+    new URL(`./catalog/movie/${CATALOG_ID}/genre=${label}.json`, OUT),
+    JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
+  );
+}
 
 await writeFile(
   new URL("./resolved-movies.json", OUT),
   JSON.stringify(resolved, null, 2) + "\n"
 );
 await writeFile(new URL("./.nojekyll", OUT), "");
+
+const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+  <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#39d6ff"/>
+    <stop offset="48%" stop-color="#785cff"/>
+    <stop offset="100%" stop-color="#ff3aa7"/>
+  </linearGradient>
+  <linearGradient id="neon2" x1="1" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#25f2ff"/>
+    <stop offset="55%" stop-color="#6c4dff"/>
+    <stop offset="100%" stop-color="#ff2f9b"/>
+  </linearGradient>
+  <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="7" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<rect width="512" height="512" rx="72" fill="#020206"/>
+<g filter="url(#glow)" text-anchor="middle">
+  <text x="256" y="235" font-size="126" font-family="Brush Script MT, Segoe Script, cursive" font-weight="700"
+        fill="url(#neon)" stroke="url(#neon2)" stroke-width="2">Disney</text>
+  <text x="256" y="345" font-size="82" letter-spacing="9" font-family="Georgia, Times New Roman, serif" font-weight="700"
+        fill="url(#neon2)" stroke="url(#neon)" stroke-width="1.5">PIXAR</text>
+</g>
+</svg>`;
+await writeFile(new URL("./icon.svg", OUT), iconSvg);
 
 const html = `<!doctype html>
 <html lang="en">
@@ -283,7 +312,7 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 <body>
 <h1>Disney + Pixar Canon</h1>
 <p>95 released feature films: 64 Walt Disney Animation Studios films and 31 Pixar films.</p>
-<p>Includes three catalog views: Release Date, IMDb Rating, and A–Z.</p>
+<p>One catalog with sorting for Release Date, IMDb Rating, and Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
 <p class="muted">Manifest: <code id="manifest"></code></p>
 <script>
@@ -295,7 +324,8 @@ document.getElementById('install').href = manifest.replace(/^https?:\\/\\//, 'st
 </html>`;
 await writeFile(new URL("./index.html", OUT), html);
 
-console.log(`\nBuilt ${resolved.length} movies into three sorted catalogs.`);
-console.log("Release Date: newest to oldest");
+console.log(`\nBuilt ${resolved.length} movies with three sort modes.`);
+console.log("Release Date: newest to oldest (default/Home)");
 console.log("IMDb Rating: highest to lowest");
 console.log("Alphabetical: A to Z");
+console.log("Addon icon: icon.svg");
