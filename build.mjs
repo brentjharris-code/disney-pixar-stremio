@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { movies } from "./movies.mjs";
 
 const OUT = new URL("./dist/", import.meta.url);
@@ -323,6 +323,30 @@ document.getElementById('install').href = manifest.replace(/^https?:\\/\\//, 'st
 </body>
 </html>`;
 await writeFile(new URL("./index.html", OUT), html);
+
+// Publish a fresh v2 endpoint with a different addon ID so Stremio treats it
+// as a completely new addon instead of reusing cached manifest data.
+const V2 = new URL("./v2/", OUT);
+await mkdir(new URL("./catalog/", V2), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", V2), { recursive: true });
+await writeFile(new URL("./icon.svg", V2), iconSvg);
+
+const v2Manifest = {
+  ...manifest,
+  id: "community.brent.disney-pixar-canon-v2",
+  version: "2.0.0",
+  name: "Disney + Pixar Canon v2",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/v2/icon.svg"
+};
+await writeFile(
+  new URL("./manifest.json", V2),
+  JSON.stringify(v2Manifest, null, 2) + "\n"
+);
+
+const v2Html = html
+  .replace("<title>Disney + Pixar Canon — Stremio Addon</title>", "<title>Disney + Pixar Canon v2 — Stremio Addon</title>")
+  .replace("<h1>Disney + Pixar Canon</h1>", "<h1>Disney + Pixar Canon v2</h1>");
+await writeFile(new URL("./index.html", V2), v2Html);
 
 console.log(`\nBuilt ${resolved.length} movies with three sort modes.`);
 console.log("Release Date: newest to oldest (default/Home)");
