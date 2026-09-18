@@ -8,8 +8,7 @@ const autoCount = (autoReleases.mcu ?? []).length;
 const OUT = new URL("./dist/mcu/", import.meta.url);
 const CATALOG_ID = "mcu-films";
 const CONCURRENCY = 6;
-const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
-const ORDER_OPTIONS = ["Descending", "Ascending"];
+const SORT_OPTIONS = ["Release Date — Newest First", "Release Date — Oldest First", "IMDb Rating — High to Low", "IMDb Rating — Low to High", "Alphabetical — A to Z", "Alphabetical — Z to A"];
 
 function normalize(s = "") {
   return s
@@ -259,11 +258,6 @@ const manifest = {
           name: "genre",
           isRequired: true,
           options: SORT_OPTIONS
-        },
-        {
-          name: "order",
-          isRequired: true,
-          options: ORDER_OPTIONS
         }
       ]
     }
@@ -281,48 +275,18 @@ await writeFile(
 );
 
 const sortedCatalogs = new Map([
-  ["Release Date", {
-    Descending: byRelease,
-    Ascending: [...byRelease].reverse()
-  }],
-  ["IMDb Rating", {
-    Descending: byImdb,
-    Ascending: [...byImdb].reverse()
-  }],
-  ["Alphabetical", {
-    Descending: [...byAlpha].reverse(),
-    Ascending: byAlpha
-  }]
+  ["Release Date — Newest First", byRelease],
+  ["Release Date — Oldest First", [...byRelease].reverse()],
+  ["IMDb Rating — High to Low", byImdb],
+  ["IMDb Rating — Low to High", [...byImdb].reverse()],
+  ["Alphabetical — A to Z", byAlpha],
+  ["Alphabetical — Z to A", [...byAlpha].reverse()]
 ]);
 
-for (const [label, orders] of sortedCatalogs) {
-  const legacyDefault =
-    label === "Alphabetical" ? orders.Ascending : orders.Descending;
-
+for (const [label, items] of sortedCatalogs) {
   await writeFile(
     new URL(`./catalog/movie/${CATALOG_ID}/genre=${label}.json`, OUT),
-    JSON.stringify({ metas: legacyDefault.map(publicMeta) }, null, 2) + "\n"
-  );
-
-  for (const order of ORDER_OPTIONS) {
-    const items = orders[order];
-
-    await writeFile(
-      new URL(`./catalog/movie/${CATALOG_ID}/genre=${label}&order=${order}.json`, OUT),
-      JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
-    );
-
-    await writeFile(
-      new URL(`./catalog/movie/${CATALOG_ID}/order=${order}&genre=${label}.json`, OUT),
-      JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
-    );
-  }
-}
-
-for (const order of ORDER_OPTIONS) {
-  await writeFile(
-    new URL(`./catalog/movie/${CATALOG_ID}/order=${order}.json`, OUT),
-    JSON.stringify({ metas: sortedCatalogs.get("Release Date")[order].map(publicMeta) }, null, 2) + "\n"
+    JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
   );
 }
 
@@ -429,6 +393,29 @@ await writeFile(
   JSON.stringify(marvelV3Manifest, null, 2) + "\n"
 );
 await writeFile(new URL("./index.html", MARVEL_V3), marvelHtml);
+
+const MARVEL_V4 = new URL("./dist/marvel-v4/", import.meta.url);
+await rm(MARVEL_V4, { recursive: true, force: true });
+await mkdir(new URL("./catalog/movie/", MARVEL_V4), { recursive: true });
+await cp(new URL("./catalog/", OUT), new URL("./catalog/", MARVEL_V4), { recursive: true });
+await writeFile(new URL("./icon.svg", MARVEL_V4), iconSvg);
+
+const marvelV4Manifest = {
+  ...manifest,
+  id: "community.brent.marvel-v4",
+  version: `4.0.${autoCount}`,
+  name: "Marvel",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/marvel-v4/icon.svg",
+  catalogs: manifest.catalogs.map(catalog => ({
+    ...catalog,
+    name: "Marvel"
+  }))
+};
+await writeFile(
+  new URL("./manifest.json", MARVEL_V4),
+  JSON.stringify(marvelV4Manifest, null, 2) + "\n"
+);
+await writeFile(new URL("./index.html", MARVEL_V4), marvelHtml);
 
 console.log(
   `\nBuilt ${resolved.length} MCU films into dist/mcu/ with three sort modes.`
