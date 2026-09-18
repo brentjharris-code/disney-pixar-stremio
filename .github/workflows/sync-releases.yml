@@ -72,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add auto-releases.json
-          git commit -m "Auto-add newly released Disney Pixar MCU films"
+          git commit -m "Auto-add newly released Disney Pixar MCU Star Wars films"
           git push
 
       - name: Configure Pages

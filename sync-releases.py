@@ -12,7 +12,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 AUTO_PATH = ROOT / "auto-releases.json"
 DISNEY_SOURCE = ROOT / "movies.mjs"
-MCU_SOURCE = ROOT / "mcu-movies.mjs"
+MCU_SOURCE = ROOT / "mcu-movies.mjs"\nSTAR_WARS_SOURCE = ROOT / "star-wars-movies.mjs"
 
 SOURCES = [
     {
@@ -29,6 +29,19 @@ SOURCES = [
         "url": "https://en.wikipedia.org/wiki/List_of_Marvel_Cinematic_Universe_films",
         "bucket": "mcu",
         "studio": None,
+    },
+    {
+        "url": "https://en.wikipedia.org/wiki/List_of_Star_Wars_films",
+        "bucket": "starWars",
+        "studio": None,
+        "exclude_titles": {
+            "star wars holiday special",
+            "the star wars holiday special",
+            "the ewok adventure",
+            "caravan of courage an ewok adventure",
+            "ewoks the battle for endor",
+            "a droid story",
+        },
     },
 ]
 
@@ -148,6 +161,10 @@ def discover(source):
             if not title or title.lower() in {"nan", "film", "title", "tba"}:
                 continue
 
+            excluded = source.get("exclude_titles", set())
+            if normalize_title(title) in excluded:
+                continue
+
             release_date = exact_release_date(row.get(date_col, ""))
             if release_date is None:
                 # Never guess partial/TBA dates. It will be reconsidered once
@@ -173,9 +190,12 @@ def discover(source):
     return list(deduped.values())
 
 
-def titles_from_js(path):
+def names_from_js(path):
+    # These source modules contain only catalog data. Reading every quoted
+    # string intentionally captures aliases as well as canonical titles, which
+    # prevents alternate display names from being mistaken for new releases.
     text = path.read_text(encoding="utf-8")
-    return re.findall(r'title:\s*"([^"]+)"', text)
+    return re.findall(r'"([^"]+)"', text)
 
 
 def main():
@@ -183,23 +203,28 @@ def main():
     auto = json.loads(AUTO_PATH.read_text(encoding="utf-8"))
     auto.setdefault("disneyPixar", [])
     auto.setdefault("mcu", [])
+    auto.setdefault("starWars", [])
 
     existing = {
         "disneyPixar": {
             normalize_title(t)
-            for t in titles_from_js(DISNEY_SOURCE)
+            for t in names_from_js(DISNEY_SOURCE)
         },
         "mcu": {
             normalize_title(t)
-            for t in titles_from_js(MCU_SOURCE)
+            for t in names_from_js(MCU_SOURCE)
+        },
+        "starWars": {
+            normalize_title(t)
+            for t in names_from_js(STAR_WARS_SOURCE)
         },
     }
-    for bucket in ("disneyPixar", "mcu"):
+    for bucket in ("disneyPixar", "mcu", "starWars"):
         existing[bucket].update(
             normalize_title(item["title"]) for item in auto[bucket]
         )
 
-    additions = {"disneyPixar": [], "mcu": []}
+    additions = {"disneyPixar": [], "mcu": [], "starWars": []}
 
     for source in SOURCES:
         bucket = source["bucket"]
@@ -220,7 +245,7 @@ def main():
             existing[bucket].add(key)
 
     changed = False
-    for bucket in ("disneyPixar", "mcu"):
+    for bucket in ("disneyPixar", "mcu", "starWars"):
         if additions[bucket]:
             additions[bucket].sort(
                 key=lambda x: (x["releaseDate"], x["title"])
@@ -242,7 +267,7 @@ def main():
             encoding="utf-8",
         )
     else:
-        print("No newly released Disney/Pixar/MCU films found.")
+        print("No newly released Disney/Pixar/MCU/Star Wars films found.")
 
 
 if __name__ == "__main__":

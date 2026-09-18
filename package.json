@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "node build.mjs && node build-mcu.mjs"
+    "build": "node build.mjs && node build-mcu.mjs && node build-starwars.mjs"
   },
   "engines": {
     "node": ">=20"
