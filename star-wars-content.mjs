@@ -71,21 +71,21 @@ export const starWarsContent = [
   { type: "movie", id: "tt8999684", title: "LEGO Star Wars: The New Yoda Chronicles - Duel of the Skywalkers", year: 2014, aliases: ["Duel of the Skywalkers", "The New Yoda Chronicles: Duel of the Skywalkers", "LEGO Star Wars: The New Yoda Chronicles - Duel of the Skywalkers"] },
   { type: "movie", id: "tt10951528", title: "Star Wars: Galaxy's Edge - Adventure Awaits", year: 2019, aliases: ["Galaxy's Edge - Adventure Awaits", "Star Wars: Galaxy's Edge – Adventure Awaits"] },
   { type: "movie", id: "tt11559486", title: "Star Wars: Rise of the Resistance | Disneyland Resort", year: 2019, aliases: ["Star Wars: Rise of the Resistance", "Rise of the Resistance | Disneyland Resort"] },
-  { type: "movie", allowCustom: true, title: "Star Wars: Galaxy's Edge | Disneyland Resort", year: 2019, aliases: ["Star Wars: Galaxy's Edge", "Galaxy's Edge | Disneyland Resort"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars: Galaxy's Edge | Disneyland Resort", year: 2019, aliases: ["Star Wars: Galaxy's Edge", "Galaxy's Edge | Disneyland Resort"] },
   { type: "movie", id: "tt15715890", title: "Under the Helmet: The Legacy of Boba Fett", year: 2021, aliases: ["Under the Helmet"] },
   { type: "series", id: "tt19881256", title: "Disney Gallery: The Book of Boba Fett", year: 2022, aliases: ["Disney Gallery - The Book of Boba Fett", "Disney Gallery: Star Wars: The Book of Boba Fett"] },
   { type: "movie", id: "tt21860836", title: "Obi-Wan Kenobi: A Jedi's Return", year: 2022, aliases: ["A Jedi's Return"] },
-  { type: "movie", allowCustom: true, title: "Master & Apprentice: A Special Look at Ahsoka", year: 2023, aliases: ["Master and Apprentice: A Special Look at Ahsoka"] },
-  { type: "movie", allowCustom: true, title: "Sabine's Loth-Cat Lofi", year: 2024, aliases: ["Sabine’s Loth-Cat Lofi", "Loth-Cat Lofi"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Master & Apprentice: A Special Look at Ahsoka", year: 2023, aliases: ["Master and Apprentice: A Special Look at Ahsoka"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Sabine's Loth-Cat Lofi", year: 2024, aliases: ["Sabine’s Loth-Cat Lofi", "Loth-Cat Lofi"] },
 
   { type: "series", id: "tt8352934", title: "LEGO Star Wars: The Resistance Rises", year: 2016, aliases: ["Lego Star Wars: The Resistance Rises", "The Resistance Rises"] },
-  { type: "series", allowCustom: true, title: "LEGO Star Wars: The Freemaker Adventures Shorts", year: 2016, aliases: ["The Freemaker Adventures Shorts"] },
-  { type: "series", allowCustom: true, title: "Star Wars Rebels Shorts", year: 2014, aliases: ["Rebels Shorts"] },
-  { type: "series", allowCustom: true, title: "LEGO Star Wars: All-Stars Shorts", year: 2018, aliases: ["Lego Star Wars: All-Stars Shorts", "All-Stars Shorts"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: The Freemaker Adventures Shorts", year: 2016, aliases: ["The Freemaker Adventures Shorts"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars Rebels Shorts", year: 2014, aliases: ["Rebels Shorts"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: All-Stars Shorts", year: 2018, aliases: ["Lego Star Wars: All-Stars Shorts", "All-Stars Shorts"] },
   { type: "series", id: "tt12162902", title: "Disney Gallery: The Mandalorian", year: 2020, aliases: ["Disney Gallery - The Mandalorian", "The Mandalorian: Disney Gallery"] },
   { type: "series", id: "tt15516280", title: "Star Wars Galaxy of Sounds", year: 2021, aliases: ["Star Wars: Galaxy of Sounds", "Galaxy of Sounds"] },
   { type: "series", id: "tt14578626", title: "Star Wars Vehicle Flythroughs", year: 2021, aliases: ["Star Wars: Vehicle Flythroughs", "Vehicle Flythroughs"] },
   { type: "series", id: "tt19896784", title: "Light & Magic", year: 2022, aliases: ["Light and Magic"] },
-  { type: "series", allowCustom: true, title: "Star Wars: Young Jedi Adventures Shorts", year: 2023, aliases: ["Young Jedi Adventures Shorts"] }
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: Young Jedi Adventures Shorts", year: 2023, aliases: ["Young Jedi Adventures Shorts"] }
 
 ];

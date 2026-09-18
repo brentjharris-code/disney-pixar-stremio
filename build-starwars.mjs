@@ -113,6 +113,24 @@ function releaseTimestamp(meta, fallbackYear) {
 }
 
 async function resolveItem(item) {
+  if (item.forceCustom) {
+    const id = customId(item);
+    return {
+      id,
+      type: item.type,
+      name: item.title,
+      releaseInfo: String(item.year),
+      poster: item.poster ||
+        "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg",
+      description: item.description || "Official Star Wars screen content.",
+      _rating: null,
+      _releaseTs: Date.UTC(item.year, 0, 1),
+      _resolvedName: item.title,
+      _score: 0,
+      _custom: true
+    };
+  }
+
   if (item.id && String(item.id).startsWith("tt")) {
     const details = await getCinemetaMeta(item.id, item.type);
     const rating = numericRating(details.imdbRating);
