@@ -90,4 +90,45 @@ export const starWarsContent = [
   { type: "series", id: "tt19896784", title: "Light & Magic", year: 2022, aliases: ["Light and Magic"] },
   { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: Young Jedi Adventures Shorts", year: 2023, aliases: ["Young Jedi Adventures Shorts"] }
 
+,
+// Expanded official short-form, web, motion-comic, and legacy productions
+  // from the broader Lucasfilm/Star Wars production record.
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars Resistance Shorts", year: 2018, aliases: ["Resistance Shorts"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Smuggler's Run", year: 2015, aliases: ["Star Wars: Smuggler's Run", "Smuggler’s Run"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "The Weapon of a Jedi", year: 2015, aliases: ["Star Wars: The Weapon of a Jedi"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: Go Rogue", year: 2016, aliases: ["Go Rogue"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: The Force Awakens Roll Out", year: 2017, aliases: ["Star Wars The Force Awakens Roll Out"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Reflections", year: 2018, aliases: ["Star Wars: Reflections"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: The Last Jedi Roll Out", year: 2019, aliases: ["Star Wars The Last Jedi Roll Out"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Hasbro Star Wars Mission Fleet", year: 2021, aliases: ["Star Wars Mission Fleet"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars: Galactic Starcruiser Welcome Video", year: 2021, aliases: ["Galactic Starcruiser Welcome Video"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Find Your Force with Star Wars", year: 2022, aliases: ["Find your Force with Star Wars"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars X-Wing Voyage", year: 2022, aliases: ["Star Wars X-wing Voyage"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars Breathe with R2-D2", year: 2022 },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars Islands of Ahch-To", year: 2022 },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars Breathe with Yoda", year: 2022 },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars Tatooine Sunset", year: 2022 },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Star Wars Breathe with BB-8", year: 2022 },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "How NOT to Draw R2-D2", year: 2024 },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: Fun with Nubs", year: 2024, aliases: ["Fun with Nubs"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Grogu Cutest in the Galaxy", year: 2024, aliases: ["Grogu Cutest In The Galaxy"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "HASBRO Epic STAR WARS", year: 2025, aliases: ["Hasbro Epic Star Wars"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Droid Diaries", year: 2025, aliases: ["Star Wars: Droid Diaries"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars: Icons of the Force", year: 2025, aliases: ["Icons of the Force"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "Star Wars Minis", year: 2025, aliases: ["Star Wars: Minis"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Balanced Breathing with Grogu", year: 2026 },
+
+  { type: "movie", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: The Han Solo Affair", year: 2002, aliases: ["Lego Star Wars: The Han Solo Affair"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: Revenge of the Brick", year: 2005, aliases: ["Lego Star Wars: Revenge of the Brick"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars Animated Comics", year: 2008, aliases: ["Lego Star Wars Animated Comics"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars Movie Shorts", year: 2008, aliases: ["Lego Star Wars Movie Shorts"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: The Quest for R2-D2", year: 2009, aliases: ["Lego Star Wars: The Quest for R2-D2", "The Quest for R2-D2"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: Bombad Bounty", year: 2010, aliases: ["Lego Star Wars: Bombad Bounty", "Bombad Bounty"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: Microfighters", year: 2014, aliases: ["Lego Star Wars: Microfighters"] },
+  { type: "series", allowCustom: true, forceCustom: true, title: "LEGO Star Wars: Celebrate the Season", year: 2020, aliases: ["Lego Star Wars: Celebrate the Season"] },
+
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Return of the Ewok", year: 1982 },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "R2-D2: Beneath the Dome", year: 2001, aliases: ["R2-D2 Beneath the Dome"] },
+  { type: "movie", allowCustom: true, forceCustom: true, title: "Rogue One: Recon - A Star Wars 360 Experience", year: 2016, aliases: ["Rogue One: Recon—A Star Wars 360 Experience", "Rogue One: Recon"] }
+
 ];
