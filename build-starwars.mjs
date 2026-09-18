@@ -20,8 +20,8 @@ const CONCURRENCY = 6;
 const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
 
 const CATALOGS = {
-  movie: "star-wars-movies-specials",
-  series: "star-wars-series"
+  movie: "star-wars-complete-movies-specials",
+  series: "star-wars-complete-series"
 };
 
 function normalize(s = "") {
@@ -289,15 +289,15 @@ const manifest = {
   types: ["movie", "series"],
   catalogs: [
     {
-      type: "movie",
-      id: CATALOGS.movie,
-      name: "Star Wars — Movies & Specials",
+      type: "series",
+      id: CATALOGS.series,
+      name: "STAR WARS — EVERYTHING: SERIES",
       extra: [{ name: "genre", options: SORT_OPTIONS }]
     },
     {
-      type: "series",
-      id: CATALOGS.series,
-      name: "Star Wars — Series",
+      type: "movie",
+      id: CATALOGS.movie,
+      name: "STAR WARS — EVERYTHING: MOVIES, SPECIALS & DOCS",
       extra: [{ name: "genre", options: SORT_OPTIONS }]
     }
   ]
@@ -395,6 +395,21 @@ await writeFile(new URL("./index.html", OUT), html);
 const FRESH = new URL("./dist/star-wars-everything/", import.meta.url);
 await rm(FRESH, { recursive: true, force: true });
 await cp(OUT, FRESH, { recursive: true });
+
+const COMPLETE = new URL("./dist/star-wars-complete/", import.meta.url);
+await rm(COMPLETE, { recursive: true, force: true });
+await cp(OUT, COMPLETE, { recursive: true });
+const completeManifest = {
+  ...manifest,
+  id: "community.brent.star-wars-complete-v3",
+  version: `3.0.${autoCount}`,
+  name: "Star Wars — COMPLETE",
+  logo: "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars-complete/icon.svg"
+};
+await writeFile(
+  new URL("./manifest.json", COMPLETE),
+  JSON.stringify(completeManifest, null, 2) + "\n"
+);
 
 console.log(
   `\nBuilt Star Wars Everything: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`

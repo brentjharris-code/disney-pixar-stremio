@@ -60,4 +60,32 @@ export const starWarsContent = [
   { type: "series", title: "Star Wars: Tales of the Underworld", year: 2025, aliases: ["Tales of the Underworld"] },
   { type: "series", title: "Star Wars: Maul - Shadow Lord", year: 2026, aliases: ["Star Wars: Maul – Shadow Lord", "Maul - Shadow Lord", "Maul – Shadow Lord"] },
   { type: "series", title: "Star Wars: Visions Presents - The Ninth Jedi", year: 2026, aliases: ["Star Wars: Visions Presents — The Ninth Jedi", "Visions Presents - The Ninth Jedi", "The Ninth Jedi"] }
+,
+// Additional official Star Wars screen content audited against StarWars.com's viewing guide
+  { type: "movie", title: "The Story of the Faithful Wookiee", year: 1978, aliases: ["The Faithful Wookiee", "Story of the Faithful Wookiee"] },
+  { type: "movie", title: "Empire of Dreams: The Story of the Star Wars Trilogy", year: 2004, aliases: ["Empire of Dreams"] },
+  { type: "movie", title: "LEGO Star Wars: The New Yoda Chronicles - Raid on Coruscant", year: 2014, aliases: ["Raid on Coruscant"] },
+  { type: "movie", title: "LEGO Star Wars: The New Yoda Chronicles - Race for the Holocrons", year: 2014, aliases: ["Race for the Holocrons"] },
+  { type: "movie", title: "LEGO Star Wars: The New Yoda Chronicles - Escape from the Jedi Temple", year: 2014, aliases: ["Escape from the Jedi Temple"] },
+  { type: "movie", title: "LEGO Star Wars: The New Yoda Chronicles - Clash of the Skywalkers", year: 2014, aliases: ["Clash of the Skywalkers"] },
+  { type: "movie", title: "LEGO Star Wars: The New Yoda Chronicles - Duel of the Skywalkers", year: 2014, aliases: ["Duel of the Skywalkers"] },
+  { type: "movie", title: "Star Wars: Galaxy's Edge - Adventure Awaits", year: 2019, aliases: ["Galaxy's Edge - Adventure Awaits", "Star Wars: Galaxy's Edge – Adventure Awaits"] },
+  { type: "movie", title: "Star Wars: Rise of the Resistance | Disneyland Resort", year: 2019, aliases: ["Star Wars: Rise of the Resistance", "Rise of the Resistance | Disneyland Resort"] },
+  { type: "movie", title: "Star Wars: Galaxy's Edge | Disneyland Resort", year: 2019, aliases: ["Star Wars: Galaxy's Edge", "Galaxy's Edge | Disneyland Resort"] },
+  { type: "movie", title: "Under the Helmet: The Legacy of Boba Fett", year: 2021, aliases: ["Under the Helmet"] },
+  { type: "movie", title: "Disney Gallery: The Book of Boba Fett", year: 2022, aliases: ["Disney Gallery - The Book of Boba Fett"] },
+  { type: "movie", title: "Obi-Wan Kenobi: A Jedi's Return", year: 2022, aliases: ["A Jedi's Return"] },
+  { type: "movie", title: "Master & Apprentice: A Special Look at Ahsoka", year: 2023, aliases: ["Master and Apprentice: A Special Look at Ahsoka"] },
+  { type: "movie", title: "Sabine's Loth-Cat Lofi", year: 2024, aliases: ["Sabine’s Loth-Cat Lofi", "Loth-Cat Lofi"] },
+
+  { type: "series", title: "LEGO Star Wars: The Resistance Rises", year: 2016, aliases: ["Lego Star Wars: The Resistance Rises", "The Resistance Rises"] },
+  { type: "series", title: "LEGO Star Wars: The Freemaker Adventures Shorts", year: 2016, aliases: ["The Freemaker Adventures Shorts"] },
+  { type: "series", title: "Star Wars Rebels Shorts", year: 2014, aliases: ["Rebels Shorts"] },
+  { type: "series", title: "LEGO Star Wars: All-Stars Shorts", year: 2018, aliases: ["Lego Star Wars: All-Stars Shorts", "All-Stars Shorts"] },
+  { type: "series", title: "Disney Gallery: The Mandalorian", year: 2020, aliases: ["Disney Gallery - The Mandalorian", "The Mandalorian: Disney Gallery"] },
+  { type: "series", title: "Star Wars Galaxy of Sounds", year: 2021, aliases: ["Star Wars: Galaxy of Sounds", "Galaxy of Sounds"] },
+  { type: "series", title: "Star Wars Vehicle Flythroughs", year: 2021, aliases: ["Star Wars: Vehicle Flythroughs", "Vehicle Flythroughs"] },
+  { type: "series", title: "Light & Magic", year: 2022, aliases: ["Light and Magic"] },
+  { type: "series", title: "Star Wars: Young Jedi Adventures Shorts", year: 2023, aliases: ["Young Jedi Adventures Shorts"] }
+
 ];
