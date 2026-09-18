@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 AUTO_PATH = ROOT / "auto-releases.json"
 DISNEY_SOURCE = ROOT / "movies.mjs"
 MCU_SOURCE = ROOT / "mcu-movies.mjs"
-STAR_WARS_SOURCE = ROOT / "star-wars-movies.mjs"
+STAR_WARS_SOURCE = ROOT / "star-wars-content.mjs"
 
 SOURCES = [
     {
@@ -33,16 +33,15 @@ SOURCES = [
     },
     {
         "url": "https://en.wikipedia.org/wiki/List_of_Star_Wars_films",
-        "bucket": "starWars",
+        "bucket": "starWarsMovies",
         "studio": None,
-        "exclude_titles": {
-            "star wars holiday special",
-            "the star wars holiday special",
-            "the ewok adventure",
-            "caravan of courage an ewok adventure",
-            "ewoks the battle for endor",
-            "a droid story",
-        },
+        "type": "movie",
+    },
+    {
+        "url": "https://en.wikipedia.org/wiki/List_of_Star_Wars_television_series",
+        "bucket": "starWarsSeries",
+        "studio": None,
+        "type": "series",
     },
 ]
 
@@ -152,10 +151,30 @@ def discover(source):
         date_col = find_col(columns, lambda c: "release date" in c)
         director_col = find_col(columns, lambda c: "director" in c)
 
-        # Filmography/upcoming tables have all three. This avoids reception,
-        # box-office, associated-production, and cancelled-project tables.
-        if not (film_col and date_col and director_col):
-            continue
+        if source.get("type") == "series":
+            if not film_col:
+                film_col = find_col(
+                    columns,
+                    lambda c: c == "series" or c.startswith("series "),
+                )
+            if not date_col:
+                date_col = find_col(
+                    columns,
+                    lambda c: (
+                        "originally released" in c
+                        or "first aired" in c
+                        or "first released" in c
+                        or "premiere" in c
+                        or "original release" in c
+                    ),
+                )
+            if not (film_col and date_col):
+                continue
+        else:
+            # Filmography/upcoming tables have all three. This avoids
+            # reception, box-office, and cancelled-project tables.
+            if not (film_col and date_col and director_col):
+                continue
 
         for _, row in df.iterrows():
             title = clean_title(row.get(film_col, ""))
@@ -178,6 +197,7 @@ def discover(source):
                     "year": release_date.year,
                     "releaseDate": release_date.isoformat(),
                     **({"studio": source["studio"]} if source["studio"] else {}),
+                    **({"type": source["type"]} if source.get("type") else {}),
                 }
             )
 
@@ -204,7 +224,8 @@ def main():
     auto = json.loads(AUTO_PATH.read_text(encoding="utf-8"))
     auto.setdefault("disneyPixar", [])
     auto.setdefault("mcu", [])
-    auto.setdefault("starWars", [])
+    auto.setdefault("starWarsMovies", [])
+    auto.setdefault("starWarsSeries", [])
 
     existing = {
         "disneyPixar": {
@@ -215,17 +236,26 @@ def main():
             normalize_title(t)
             for t in names_from_js(MCU_SOURCE)
         },
-        "starWars": {
+        "starWarsMovies": {
+            normalize_title(t)
+            for t in names_from_js(STAR_WARS_SOURCE)
+        },
+        "starWarsSeries": {
             normalize_title(t)
             for t in names_from_js(STAR_WARS_SOURCE)
         },
     }
-    for bucket in ("disneyPixar", "mcu", "starWars"):
+    for bucket in ("disneyPixar", "mcu", "starWarsMovies", "starWarsSeries"):
         existing[bucket].update(
             normalize_title(item["title"]) for item in auto[bucket]
         )
 
-    additions = {"disneyPixar": [], "mcu": [], "starWars": []}
+    additions = {
+        "disneyPixar": [],
+        "mcu": [],
+        "starWarsMovies": [],
+        "starWarsSeries": [],
+    }
 
     for source in SOURCES:
         bucket = source["bucket"]
@@ -246,7 +276,7 @@ def main():
             existing[bucket].add(key)
 
     changed = False
-    for bucket in ("disneyPixar", "mcu", "starWars"):
+    for bucket in ("disneyPixar", "mcu", "starWarsMovies", "starWarsSeries"):
         if additions[bucket]:
             additions[bucket].sort(
                 key=lambda x: (x["releaseDate"], x["title"])
@@ -268,7 +298,7 @@ def main():
             encoding="utf-8",
         )
     else:
-        print("No newly released Disney/Pixar/MCU/Star Wars films found.")
+        print("No newly released Disney/Pixar/MCU/Star Wars screen titles found.")
 
 
 if __name__ == "__main__":

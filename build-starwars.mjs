@@ -1,16 +1,28 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { starWarsMovies } from "./star-wars-movies.mjs";
+import { starWarsContent } from "./star-wars-content.mjs";
 
 const autoReleases = JSON.parse(
   await readFile(new URL("./auto-releases.json", import.meta.url), "utf8")
 );
-const allMovies = [...starWarsMovies, ...(autoReleases.starWars ?? [])];
-const autoCount = (autoReleases.starWars ?? []).length;
+
+const allContent = [
+  ...starWarsContent,
+  ...(autoReleases.starWarsMovies ?? []).map(x => ({ ...x, type: "movie" })),
+  ...(autoReleases.starWarsSeries ?? []).map(x => ({ ...x, type: "series" }))
+];
+
+const autoCount =
+  (autoReleases.starWarsMovies ?? []).length +
+  (autoReleases.starWarsSeries ?? []).length;
 
 const OUT = new URL("./dist/star-wars/", import.meta.url);
-const CATALOG_ID = "star-wars-films";
 const CONCURRENCY = 6;
 const SORT_OPTIONS = ["Release Date", "IMDb Rating", "Alphabetical"];
+
+const CATALOGS = {
+  movie: "star-wars-movies-specials",
+  series: "star-wars-series"
+};
 
 function normalize(s = "") {
   return s
@@ -29,19 +41,19 @@ function getYear(meta) {
   return match ? Number(match[0]) : null;
 }
 
-function score(meta, wantedTitle, wantedYear, aliases = []) {
+function score(meta, item) {
   const actual = normalize(meta.name);
-  const wantedNames = [wantedTitle, ...aliases].map(normalize);
+  const names = [item.title, ...(item.aliases ?? [])].map(normalize);
   const y = getYear(meta);
   let n = 0;
 
-  if (wantedNames.some(name => actual === name)) n += 120;
-  else if (wantedNames.some(name => actual.includes(name) || name.includes(actual))) n += 45;
+  if (names.some(name => actual === name)) n += 120;
+  else if (names.some(name => actual.includes(name) || name.includes(actual))) n += 45;
 
-  if (y === wantedYear) n += 70;
-  else if (y && Math.abs(y - wantedYear) === 1) n += 20;
+  if (y === item.year) n += 70;
+  else if (y && Math.abs(y - item.year) === 1) n += 20;
 
-  if (meta.type === "movie") n += 5;
+  if (meta.type === item.type) n += 10;
   if (String(meta.id ?? "").startsWith("tt")) n += 10;
   return n;
 }
@@ -51,7 +63,7 @@ async function fetchJson(url, attempts = 4) {
   for (let i = 0; i < attempts; i++) {
     try {
       const res = await fetch(url, {
-        headers: { "user-agent": "StarWarsStremioCatalog/1.0" }
+        headers: { "user-agent": "StarWarsEverythingStremioCatalog/2.0" }
       });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       return await res.json();
@@ -63,23 +75,23 @@ async function fetchJson(url, attempts = 4) {
   throw lastError;
 }
 
-async function searchCinemeta(query) {
+async function searchCinemeta(query, type) {
   const encoded = encodeURIComponent(query);
   const data = await fetchJson(
-    `https://v3-cinemeta.strem.io/catalog/movie/top/search=${encoded}.json`
+    `https://v3-cinemeta.strem.io/catalog/${type}/top/search=${encoded}.json`
   );
   return Array.isArray(data.metas) ? data.metas : [];
 }
 
-async function getCinemetaMeta(id) {
+async function getCinemetaMeta(id, type) {
   try {
     const data = await fetchJson(
-      `https://v3-cinemeta.strem.io/meta/movie/${id}.json`,
+      `https://v3-cinemeta.strem.io/meta/${type}/${id}.json`,
       3
     );
     return data?.meta ?? {};
   } catch (err) {
-    console.warn(`Could not fetch full metadata for ${id}: ${err.message}`);
+    console.warn(`Could not fetch full metadata for ${type}/${id}: ${err.message}`);
     return {};
   }
 }
@@ -95,19 +107,16 @@ function releaseTimestamp(meta, fallbackYear) {
   return Number.isFinite(ts) ? ts : Date.UTC(fallbackYear, 0, 1);
 }
 
-async function resolveMovie(movie) {
-  const queries = [movie.title, ...(movie.aliases ?? [])];
+async function resolveItem(item) {
+  const queries = [item.title, ...(item.aliases ?? [])];
   let candidates = [];
 
   for (const query of queries) {
-    const metas = await searchCinemeta(query);
+    const metas = await searchCinemeta(query, item.type);
     candidates.push(...metas);
 
     const best = metas
-      .map(meta => ({
-        meta,
-        score: score(meta, movie.title, movie.year, movie.aliases ?? [])
-      }))
+      .map(meta => ({ meta, score: score(meta, item) }))
       .sort((a, b) => b.score - a.score)[0];
 
     if (best?.score >= 150) {
@@ -117,16 +126,13 @@ async function resolveMovie(movie) {
   }
 
   const ranked = candidates
-    .map(meta => ({
-      meta,
-      score: score(meta, movie.title, movie.year, movie.aliases ?? [])
-    }))
+    .map(meta => ({ meta, score: score(meta, item) }))
     .filter(x => String(x.meta.id ?? "").startsWith("tt"))
     .sort((a, b) => b.score - a.score);
 
   const winner = ranked[0];
   const winnerName = normalize(winner?.meta?.name ?? "");
-  const compatibleNames = [movie.title, ...(movie.aliases ?? [])].map(normalize);
+  const compatibleNames = [item.title, ...(item.aliases ?? [])].map(normalize);
   const titleCompatible = compatibleNames.some(
     wanted =>
       winnerName === wanted ||
@@ -135,13 +141,13 @@ async function resolveMovie(movie) {
   );
 
   if (!winner || winner.score < 100) {
-    if (!titleCompatible || winner.score < 60) {
+    if (!titleCompatible || winner.score < 55) {
       throw new Error(
-        `Could not confidently resolve ${movie.title} (${movie.year}). Best score: ${winner?.score ?? "none"}`
+        `Could not confidently resolve ${item.type} "${item.title}" (${item.year}). Best score: ${winner?.score ?? "none"}`
       );
     }
     console.warn(
-      `Accepted title-only match for ${movie.title} (${movie.year}): "${winner.meta.name}" [${winner.meta.id}], score ${winner.score}`
+      `Accepted title-only match for ${item.title} (${item.year}): "${winner.meta.name}" [${winner.meta.id}], score ${winner.score}`
     );
   }
 
@@ -149,23 +155,23 @@ async function resolveMovie(movie) {
   let details = winner.meta;
 
   if (!winner.meta.imdbRating || !winner.meta.released) {
-    details = { ...winner.meta, ...(await getCinemetaMeta(id)) };
+    details = { ...winner.meta, ...(await getCinemetaMeta(id, item.type)) };
   }
 
   const rating = numericRating(details.imdbRating);
 
   return {
     id,
-    type: "movie",
-    name: movie.title,
-    releaseInfo: String(movie.year),
+    type: item.type,
+    name: item.title,
+    releaseInfo: String(item.year),
     poster:
       details.poster ||
       winner.meta.poster ||
       `https://images.metahub.space/poster/medium/${id}/img`,
     ...(rating !== null ? { imdbRating: rating.toFixed(1) } : {}),
     _rating: rating,
-    _releaseTs: releaseTimestamp(details, movie.year),
+    _releaseTs: releaseTimestamp(details, item.year),
     _resolvedName: winner.meta.name,
     _score: winner.score
   };
@@ -181,7 +187,7 @@ async function mapPool(items, limit, fn) {
       if (i >= items.length) return;
       out[i] = await fn(items[i], i);
       process.stdout.write(
-        `Resolved Star Wars ${i + 1}/${items.length}: ${items[i].title}\n`
+        `Resolved Star Wars ${i + 1}/${items.length}: [${items[i].type}] ${items[i].title}\n`
       );
     }
   }
@@ -195,101 +201,122 @@ function publicMeta(item) {
   return meta;
 }
 
+function sortRelease(items) {
+  return [...items].sort(
+    (a, b) =>
+      b._releaseTs - a._releaseTs ||
+      a.name.localeCompare(b.name, "en", { sensitivity: "base" })
+  );
+}
+
+function sortImdb(items) {
+  return [...items].sort((a, b) => {
+    const ar = a._rating ?? -1;
+    const br = b._rating ?? -1;
+    return (
+      br - ar ||
+      b._releaseTs - a._releaseTs ||
+      a.name.localeCompare(b.name, "en", { sensitivity: "base" })
+    );
+  });
+}
+
+function sortAlpha(items) {
+  return [...items].sort((a, b) =>
+    a.name.localeCompare(b.name, "en", {
+      sensitivity: "base",
+      numeric: true,
+      ignorePunctuation: true
+    })
+  );
+}
+
 await rm(OUT, { recursive: true, force: true });
-await mkdir(new URL(`./catalog/movie/${CATALOG_ID}/`, OUT), {
-  recursive: true
-});
 
-if (allMovies.length < 13) {
+const movieItems = allContent.filter(x => x.type === "movie");
+const seriesItems = allContent.filter(x => x.type === "series");
+
+if (movieItems.length < 20 || seriesItems.length < 25) {
   throw new Error(
-    `Expected at least 13 released theatrical Star Wars films, found ${allMovies.length}.`
+    `Star Wars catalog unexpectedly small: ${movieItems.length} movies/specials, ${seriesItems.length} series.`
   );
 }
 
-const resolved = await mapPool(allMovies, CONCURRENCY, resolveMovie);
+const resolved = await mapPool(allContent, CONCURRENCY, resolveItem);
 
-const ids = resolved.map(x => x.id);
-const duplicateIds = ids.filter((id, i) => ids.indexOf(id) !== i);
-if (duplicateIds.length) {
-  throw new Error(
-    `Duplicate IMDb IDs resolved: ${[...new Set(duplicateIds)].join(", ")}`
-  );
+const idsByType = new Map();
+for (const item of resolved) {
+  const key = `${item.type}:${item.id}`;
+  if (idsByType.has(key)) {
+    throw new Error(
+      `Duplicate resolved ID ${key} for "${idsByType.get(key)}" and "${item.name}".`
+    );
+  }
+  idsByType.set(key, item.name);
 }
 
-const byRelease = [...resolved].sort(
-  (a, b) =>
-    b._releaseTs - a._releaseTs ||
-    a.name.localeCompare(b.name, "en", { sensitivity: "base" })
-);
-
-const byImdb = [...resolved].sort((a, b) => {
-  const ar = a._rating ?? -1;
-  const br = b._rating ?? -1;
-  return (
-    br - ar ||
-    b._releaseTs - a._releaseTs ||
-    a.name.localeCompare(b.name, "en", { sensitivity: "base" })
-  );
-});
-
-const byAlpha = [...resolved].sort((a, b) =>
-  a.name.localeCompare(b.name, "en", {
-    sensitivity: "base",
-    numeric: true,
-    ignorePunctuation: true
-  })
-);
+const resolvedMovies = resolved.filter(x => x.type === "movie");
+const resolvedSeries = resolved.filter(x => x.type === "series");
 
 const manifest = {
-  id: "community.brent.star-wars-films",
-  version: `1.0.${autoCount}`,
-  name: "Star Wars Films",
+  id: "community.brent.star-wars-everything",
+  version: `2.0.${autoCount}`,
+  name: "Star Wars — Everything",
   description:
-    "All released theatrical canon Star Wars feature films. Sort by release date, IMDb rating, or title.",
+    "Official Star Wars screen content: movies, TV movies, specials, live-action and animated series, LEGO, canon and Legends.",
   logo:
     "https://brentjharris-code.github.io/disney-pixar-stremio/star-wars/icon.svg",
   resources: ["catalog"],
-  types: ["movie"],
+  types: ["movie", "series"],
   catalogs: [
     {
       type: "movie",
-      id: CATALOG_ID,
-      name: "Star Wars Films",
-      extra: [
-        {
-          name: "genre",
-          options: SORT_OPTIONS
-        }
-      ]
+      id: CATALOGS.movie,
+      name: "Star Wars — Movies & Specials",
+      extra: [{ name: "genre", options: SORT_OPTIONS }]
+    },
+    {
+      type: "series",
+      id: CATALOGS.series,
+      name: "Star Wars — Series",
+      extra: [{ name: "genre", options: SORT_OPTIONS }]
     }
   ]
 };
+
+await mkdir(new URL(`./catalog/movie/${CATALOGS.movie}/`, OUT), { recursive: true });
+await mkdir(new URL(`./catalog/series/${CATALOGS.series}/`, OUT), { recursive: true });
 
 await writeFile(
   new URL("./manifest.json", OUT),
   JSON.stringify(manifest, null, 2) + "\n"
 );
 
-await writeFile(
-  new URL(`./catalog/movie/${CATALOG_ID}.json`, OUT),
-  JSON.stringify({ metas: byRelease.map(publicMeta) }, null, 2) + "\n"
-);
+for (const [type, id, items] of [
+  ["movie", CATALOGS.movie, resolvedMovies],
+  ["series", CATALOGS.series, resolvedSeries]
+]) {
+  const sorted = new Map([
+    ["Release Date", sortRelease(items)],
+    ["IMDb Rating", sortImdb(items)],
+    ["Alphabetical", sortAlpha(items)]
+  ]);
 
-const sortedCatalogs = new Map([
-  ["Release Date", byRelease],
-  ["IMDb Rating", byImdb],
-  ["Alphabetical", byAlpha]
-]);
-
-for (const [label, items] of sortedCatalogs) {
   await writeFile(
-    new URL(`./catalog/movie/${CATALOG_ID}/genre=${label}.json`, OUT),
-    JSON.stringify({ metas: items.map(publicMeta) }, null, 2) + "\n"
+    new URL(`./catalog/${type}/${id}.json`, OUT),
+    JSON.stringify({ metas: sorted.get("Release Date").map(publicMeta) }, null, 2) + "\n"
   );
+
+  for (const [label, list] of sorted) {
+    await writeFile(
+      new URL(`./catalog/${type}/${id}/genre=${label}.json`, OUT),
+      JSON.stringify({ metas: list.map(publicMeta) }, null, 2) + "\n"
+    );
+  }
 }
 
 await writeFile(
-  new URL("./resolved-movies.json", OUT),
+  new URL("./resolved-content.json", OUT),
   JSON.stringify(resolved, null, 2) + "\n"
 );
 await writeFile(new URL("./.nojekyll", OUT), "");
@@ -320,7 +347,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Star Wars Films — Stremio Addon</title>
+<title>Star Wars — Everything — Stremio Addon</title>
 <style>
 body{font-family:system-ui,-apple-system,sans-serif;background:#050506;color:#eee;max-width:760px;margin:60px auto;padding:0 24px;line-height:1.5}
 a.button{display:inline-block;background:#e1b915;color:#111;text-decoration:none;padding:12px 18px;border-radius:9px;font-weight:800}
@@ -328,9 +355,10 @@ code{background:#222;padding:3px 6px;border-radius:5px;overflow-wrap:anywhere}.m
 </style>
 </head>
 <body>
-<h1>Star Wars Films</h1>
-<p>${resolved.length} released theatrical canon Star Wars feature films.</p>
-<p>Sort by Release Date, IMDb Rating, or Alphabetical.</p>
+<h1>Star Wars — Everything</h1>
+<p>${resolvedMovies.length} movies/specials and ${resolvedSeries.length} series.</p>
+<p>Includes theatrical films, TV movies, specials, live-action and animation, LEGO, canon and Legends.</p>
+<p>Each catalog can be sorted by Release Date, IMDb Rating, or Alphabetical.</p>
 <p><a class="button" id="install" href="#">Install in Stremio</a></p>
 <p class="muted">Manifest: <code id="manifest"></code></p>
 <script>
@@ -344,5 +372,5 @@ document.getElementById('install').href = manifest.replace(/^https?:\\/\\//, 'st
 await writeFile(new URL("./index.html", OUT), html);
 
 console.log(
-  `\nBuilt ${resolved.length} Star Wars films into dist/star-wars/ with three sort modes.`
+  `\nBuilt Star Wars Everything: ${resolvedMovies.length} movies/specials + ${resolvedSeries.length} series.`
 );
